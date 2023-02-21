@@ -1,0 +1,1177 @@
+; This is a disassembly of the roms for a Entrex 6xx terminal board from AJ
+;
+; 2-18-2023 Tom Trebisky 
+;
+; A first disassembly was done by "phar" using an unknown disassembler.
+; I did my own disassembly using
+;
+;   https://github.com/snwlvl/Intel-8080-Disassembler.git
+;
+; This is clean and simple C code and only 848 lines of it.
+; It seems just fine.
+;
+; This board is based on an AMD 8080 chip.
+; A pair of 2708 chips held this code (a mere 2k in 2 chips).
+;
+; The board uses AM91L01 ram chips in pairs.
+; each chip is 256 x 4 bits, so a pair is 256 bytes.
+; There are 3 pairs on the board.
+; No doubt 2 pairs are video ram (512 bytes)
+; The other pair must be for the stack and may be
+; at 0xff00 to 0xffff.
+; We see variables at ff00 to ff22
+; We see variables at fff8 to fffd
+; The stack starts at ffd0
+;
+; The basic terminal displays 12 lines of 40 characters,
+; which requires 480 bytes and fits nicely into 512 bytes.
+;
+; The terminal has an option to display 24 lines of 80 characters,
+;  but this requires installation of a memory expansion board.
+;  We won't talk about this mode any more since we don't have this.
+;
+; Display memory seems to be at 0xc000, but there is something
+; at 0xf000 that get cleared at start up.
+;
+;
+; The 8080 begins running at address 0 when it comes out of reset,
+;  which is the start of this rom image.
+;
+; IN instruction addresses:
+;	40
+;	48
+;	50
+;	58 - unused
+;	60 - unused
+;	68
+;	70
+;	78
+; OUT instruction addresses:
+;	40
+;	48 - unused
+;	50
+;	58
+;	60
+;	68
+;	70 - unused
+;	78
+;
+; Note that a series of 8 ports are used for each of the above,
+;  so a single LS138 could be used to decode each.
+;
+; Consider 8080 interrupts.  There is one INT pin which is driven high
+; to cause an interrupt.  Logic external to the processor must then jam
+; a single byte instruction onto the bus.  The usual thing is one of
+; the RST (restart) instructions.  This instruction has a 3 bit field
+; that selects on of 0, 8, 0x10, 0x18, ...  The RST is a CALL so it
+; saves the PC on the stack.
+;
+; Here is a short course on the 8080 ...
+; First, remember that the Z80 is backward compatible with the 8080.
+; so if you have 8080 books laying around (as I do) they can be very
+; useful for understanding the basic instruction set, as long as you
+; realize that the Z80 has extended features which must be ignored.
+;
+; Registers:
+;  A is the 8 bit accumulator.
+;  B and C are 8 bit registers than are sometimes a 16 bit pair
+;  D and E are 8 bit registers than are sometimes a 16 bit pair
+;  H and L are 8 bit registers than are sometimes a 16 bit pair
+;
+; SHLD and LHLD instructions store and load to/from memory
+;  They move 16 bits to/from the HL register.
+;
+; ----------------------------------
+
+; Reset starts here.
+0000	NOP			; start here
+0001	DI			; disable interrupts
+0002	LXI	SP, 0xffd0	; set up stack
+0005	JMP	0x0040		; jump to Main
+
+; RST-1
+0008	NOP			; joins hard reboot
+0009	JMP	0x0038
+000c	JMP	0x0038
+000f	NOP
+
+; RST-2
+0010	NOP			; joins hard reboot
+0011	JMP	0x0038
+0014	JMP	0x0038
+0017	NOP
+
+; RST-3 (this gets called from various places)
+0018	LXI	H, 0x8000
+001b	SHLD	0xff12
+001e	RET
+001f	NOP
+
+; RST-4
+0020	PUSH	PSW		; keyboard input handler
+0021	PUSH	B
+0022	PUSH	D
+0023	PUSH	H
+0024	JMP	0x0652
+0027	NOP
+
+; RST-5
+0028	PUSH	PSW
+0029	PUSH	B
+002a	PUSH	D
+002b	PUSH	H
+002c	JMP	0x0367
+002f	NOP
+
+; RST-6
+0030	PUSH	PSW
+0031	IN	0x78
+0033	PUSH	PSW
+0034	JMP	0x05c4
+0037	NOP
+
+; RST-7
+0038	DI			; hard reboot
+0039	LXI	SP, 0xffd0
+003c	JMP	0x0000
+003f	NOP
+
+; Main code starts here.
+0040	MVI	A, 0x06
+0042	OUT	0x78
+
+0044	LXI	H, 0xf000
+0047	MVI	B, 0x00
+
+0049	MOV	M, B		; loop to clear memory
+004a	INX	H
+004b	MOV	A, H
+004c	ORA	A
+004d	JNZ	0x0049
+
+0050	LXI	H, 0xff14
+0053	SHLD	0xff04
+0056	SHLD	0xff0c
+0059	LXI	H, 0xf020
+005c	SHLD	0xff07
+005f	LXI	H, 0x0642
+0062	SHLD	0xff0a
+0065	LXI	H, 0xffd0
+0068	SHLD	0xfffa
+006b	SHLD	0xfff8
+006e	IN	0x78
+0070	ANI	0x20
+0072	JNZ	0x007A
+0075	MVI	A, 0x01
+0077	STA	0xff03
+007a	MVI	A, 0x10
+007c	OUT	0x60
+007e	XRA	A
+007f	OUT	0x60
+0081	IN	0x40
+0083	RAL
+0084	JNC	0x0089
+0087	MVI	B, 0x7f
+0089	CALL	0x0543
+008c	OUT	0x40
+008e	MVI	A, 0x02
+0090	OUT	0x50
+0092	IN	0x50
+0094	LXI	H, 0x0028
+0097	IN	0x40
+0099	CMA
+009a	ANI	0x01
+009c	STA	0xff02
+009f	RAR
+00a0	JNC	0x00a6
+00a3	LXI	H, 0x0050
+00a6	SHLD	0xfffc
+00a9	EI			; enable interrupts
+00aa	LHLD	 0xfffa
+00ad	MOV	A, M
+00ae	ORA	A
+00af	CNZ	0x041a
+00b2	LDA	0xff09
+00b5	RAR
+00b6	JNC	0x00ca
+00b9	LDA	0xff0E
+00bc	RAR
+00bd	JC	0x00ca
+00c0	IN	0x70
+00c2	ANI	0x10
+00c4	CNZ	0x024d
+00c7	CZ	0x00e1
+00ca	IN	0x48
+00cc	ANI	0x40
+00ce	CNZ	0x0020
+00d1	LDA	0xff03
+00d4	RAR
+00d5	JC	0x0094
+00d8	MVI	A, 0x40
+00da	OUT	0x78
+00dc	IN	0x68
+00de	JMP	0x0094
+00e1	PUSH	PSW
+00e2	PUSH	B
+00e3	PUSH	D
+00e4	PUSH	H
+00e5	LHLD	 0xff07
+00e8	MOV	A, M
+00e9	CPI	0x0d
+00eb	JZ	0x0145
+00ee	CPI	0x0a
+00f0	JZ	0x0172
+00f3	CPI	0x0b
+00f5	JZ	0x01a5
+00f8	CPI	0x20
+00fa	JZ	0x01dd
+00fd	CALL	0x021e
+0100	IN	0x70
+0102	ANI	0x08
+0104	JZ	0x0627
+0107	MOV	A, M
+0108	CPI	0xb8
+010a	CZ	0x024a
+010d	CPI	0xb6
+010f	JZ	0x022e
+0112	OUT	0x58
+0114	MVI	A, 0x80
+0116	OUT	0x60
+0118	XRA	A
+0119	OUT	0x60
+011b	INX	H
+011c	SHLD	0xff07
+011f	CALL	0x021e
+0122	IN	0x48
+0124	IN	0x70
+0126	ANI	0x04
+0128	JZ	0x011f
+012b	LDA	0xff0b
+012e	MOV	E, A
+012f	DCR	D
+0130	NOP
+0131	LHLD	 0xff0f
+0134	DAD	D
+0135	SHLD	0xff0f
+0138	MOV	A, E
+0139	OUT	0x58
+013b	MVI	A, 0x40
+013d	OUT	0x60
+013f	XRA	A
+0140	OUT	0x60
+0142	JMP	0x0627
+0145	CALL	0x021e
+0148	IN	0x70
+014a	ANI	0x04
+014c	JZ	0x0627
+014f	LHLD	 0xff07
+0152	INX	H
+0153	SHLD	0xff07
+0156	LHLD	 0xff0f
+0159	MOV	A, L
+015a	OUT	0x58
+015c	MOV	A, H
+015d	ORD	0x04
+015f	OUT	0x60
+0161	ORD	0x40
+0163	OUT	0x60
+0165	ANI	0xbf
+0167	OUT	0x60
+0169	LXI	H, 0x0000
+016c	SHLD	0xff0f
+016f	JMP	0x0627
+0172	CALL	0x021e
+0175	IN	0x70
+0177	ANI	0x02
+0179	IN	0x48
+017b	JZ	0x0172
+017e	LDA	0xff0A
+0181	MOV	D, A
+0182	LDA	0xff11
+0185	INR	A
+0186	CMP	D
+0187	JNZ	0x018B
+018a	XRA	A
+018b	STA	0xff11
+018e	MVI	A, 0x08
+0190	OUT	0x58
+0192	MVI	A, 0x20
+0194	OUT	0x60
+0196	XRA	A
+0197	OUT	0x60
+0199	LXI	H, 0xf020
+019c	SHLD	0xff07
+019f	STA	0xff09
+01a2	JMP	0x0500
+01a5	CALL	0x021e
+01a8	IN	0x70
+01aa	ANI	0x02
+01ac	IN	0x48
+01ae	JZ	0x01a5
+01b1	LDA	0xff11
+01b4	MOV	D, A
+01b5	LDA	0xff0A
+01b8	SUB	D
+01b9	MOV	L, A
+01ba	MVI	H, 0x00
+01bc	DAD	H
+01bd	DAD	H
+01be	DAD	H
+01bf	MOV	A, L
+01c0	OUT	0x58
+01c2	MOV	A, H
+01c3	ANI	0x03
+01c5	OUT	0x60
+01c7	ORD	0x20
+01c9	OUT	0x60
+01cb	ANI	0xdf
+01cd	OUT	0x60
+01cf	LHLD	 0xff07
+01d2	INX	H
+01d3	SHLD	0xff07
+01d6	XRA	A
+01d7	STA	0xff11
+01da	JMP	0x0627
+01dd	CALL	0x021e
+01e0	IN	0x48
+01e2	IN	0x70
+01e4	ANI	0x04
+01e6	JZ	0x01dd
+01e9	LDA	0xff0b
+01ec	MOV	C, A
+01ed	MVI	B, 0x00
+01ef	XCHG
+01f0	LXI	H, 0x0000
+01f3	DAD	B
+01f4	INX	D
+01f5	LDAX	D
+01f6	CPI	0x20
+01f8	JZ	0x01f3
+01fb	XCHG
+01fc	SHLD	0xff07
+01ff	CPI	0x0d
+0201	JZ	0x0627
+0204	IN	0x48
+0206	MOV	A, E
+0207	OUT	0x58
+0209	MOV	A, D
+020a	OUT	0x60
+020c	ORD	0x40
+020e	OUT	0x60
+0210	ANI	0xbf
+0212	OUT	0x60
+0214	LHLD	 0xff0f
+0217	DAD	D
+0218	SHLD	0xff0f
+021b	JMP	0x0627
+021e	IN	0x70
+0220	RAR
+0221	JC	0x022a
+0224	ANI	0x10
+0226	JZ	0x022a
+0229	RET
+
+022a	POP	PSW
+022b	JMP	0x0357
+022e	MVI	A, 0x3d
+0230	OUT	0x58
+0232	MVI	A, 0x80
+0234	OUT	0x60
+0236	XRA	A
+0237	OUT	0x60
+0239	CALL	0x021e
+023c	IN	0x48
+023e	IN	0x70
+0240	ANI	0x08
+0242	JZ	0x0239
+0245	MVI	A, 0x2f
+0247	JMP	0x0112
+024a	MVI	A, 0x20
+024c	RET
+
+024d	PUSH	PSW
+024e	PUSH	B
+024f	PUSH	D
+0250	PUSH	H
+0251	MVI	A, 0x00
+0253	OUT	0x60
+0255	CALL	0x028e
+0258	ANI	0x08
+025a	JZ	0x0627
+025d	LHLD	 0xff07
+0260	MOV	A, M
+0261	CPI	0x0a
+0263	JZ	0x02a0
+0266	CPI	0xb8
+0268	CZ	0x024a
+026b	CPI	0xb6
+026d	CZ	0x024a
+0270	CPI	0x0b
+0272	JNZ	0x027D
+0275	JMP	0x027b
+0278	CALL	0x028e
+027b	MVI	A, 0x0c
+027d	CMA
+027e	OUT	0x58
+0280	MVI	A, 0x80
+0282	OUT	0x60
+0284	XRA	A
+0285	OUT	0x60
+0287	INX	H
+0288	SHLD	0xff07
+028b	JMP	0x0627
+028e	IN	0x70
+0290	RAR
+0291	JC	0x0299
+0294	RAR
+0295	JNC	0x0299
+0298	RET
+
+0299	POP	B
+029a	JMP	0x0357
+029d	CALL	0x028e
+02a0	MVI	A, 0xf5
+02a2	OUT	0x58
+02a4	MVI	A, 0x80
+02a6	OUT	0x60
+02a8	XRA	A
+02a9	OUT	0x60
+02ab	XRA	A
+02ac	JMP	0x0199
+02af	MVI	A, 0x05
+02b1	OUT	0x78
+02b3	MVI	B, 0x28
+02b5	MVI	C, 0x0c
+02b7	LDA	0xff02
+02ba	RAR
+02bb	JNC	0x02c2
+02be	MVI	B, 0x50
+02c0	MVI	C, 0x18
+02c2	MOV	A, B
+02c3	STA	0xff22
+02c6	LXI	H, 0xf020
+02c9	LXI	D, 0xc000	; display mem
+02cc	IN	0x48
+02ce	LDAX	D
+02cf	ANI	0x7f
+02d1	CPI	0x00
+02d3	JNZ	0x02DB
+02d6	MVI	A, 0x20
+02d8	JMP	0x0300
+02db	CPI	0x1d
+02dd	JNZ	0x02E5
+02e0	MVI	A, 0x5f
+02e2	JMP	0x0300
+02e5	CPI	0x1e
+02e7	JNZ	0x02EF
+02ea	MVI	A, 0xb8
+02ec	JMP	0x0300
+02ef	CPI	0x1c
+02f1	JNZ	0x02F9
+02f4	MVI	A, 0xb6
+02f6	JMP	0x0300
+02f9	CPI	0x1f
+02fb	JNZ	0x0300
+02fe	MVI	A, 0x5e
+0300	MOV	M, A
+0301	INX	H
+0302	INX	D
+0303	DCR	B
+0304	JNZ	0x02CC
+0307	MVI	M, 0x0d
+0309	INX	H
+030a	MVI	M, 0x0a
+030c	LXI	H, 0xf020
+030f	SHLD	0xff07
+0312	MVI	A, 0x01
+0314	STA	0xff09
+0317	LDA	0xff0E
+031a	RAR
+031b	JC	0x0332
+031e	LDA	0xff09
+0321	RAR
+0322	JNC	0x0345
+0325	IN	0x70
+0327	ANI	0x10
+0329	CNZ	0x024d
+032c	CZ	0x00e1
+032f	JMP	0x0317
+0332	MVI	A, 0x10
+0334	OUT	0x60
+0336	XRA	A
+0337	OUT	0x60
+0339	STA	0xff09
+033c	LXI	H, 0xf020
+033f	SHLD	0xff07
+0342	JMP	0x0169
+0345	LDA	0xff22
+0348	MOV	B, A
+0349	LXI	H, 0xf020
+034c	SHLD	0xff07
+034f	DCR	C
+0350	JNZ	0x02CC
+0353	JMP	0x0627
+0356	RST	7
+0357	LXI	B, 0x07bc
+035a	CALL	0x079d
+035d	MVI	A, 0x01
+035f	OUT	0x50
+0361	STA	0xff0e
+0364	JMP	0x0627
+
+; RST-5 handler
+0367	MVI	A, 0x61
+0369	OUT	0x78
+036b	IN	0x78
+036d	ANI	0x40
+036f	JNZ	0x03FF
+0372	IN	0x68
+0374	MOV	D, A
+0375	CPI	0x0a
+0377	JZ	0x038c
+037a	CPI	0xa5
+037c	JZ	0x03b4
+037f	ANI	0xc0
+0381	CPI	0xc0
+0383	JZ	0x03ca
+0386	CALL	0x03e4
+0389	JMP	0x040d
+038c	LHLD	 0xff07
+038f	DCX	H
+0390	MOV	A, M
+0391	CPI	0x0d
+0393	JNZ	0x03A7
+0396	CALL	0x03e4
+0399	LXI	H, 0xf020
+039c	SHLD	0xff07
+039f	MVI	A, 0x01
+03a1	STA	0xff09
+03a4	JMP	0x0626
+03a7	DCR	D
+03a8	DCR	C
+03a9	CALL	0x03e4
+03ac	DCR	D
+03ad	LDAX	B
+03ae	CALL	0x03e4
+03b1	JMP	0x0399
+03b4	IN	0x78
+03b6	RAR
+03b7	CNC	0x072c
+03ba	JNC	0x03b4
+03bd	CALL	0x0018
+03c0	IN	0x68
+03c2	ANI	0x3f
+03c4	STA	0xff0b
+03c7	JMP	0x0626
+03ca	IN	0x78
+03cc	RAR
+03cd	CNC	0x072c
+03d0	JNC	0x03ca
+03d3	CALL	0x0018
+03d6	IN	0x68
+03d8	ANI	0x7f
+03da	STA	0xff0a
+03dd	XRA	A
+03de	STA	0xff11
+03e1	JMP	0x0626
+03e4	LHLD	 0xff07
+03e7	MOV	M, D
+03e8	INX	H
+03e9	MVI	A, 0xa8
+03eb	CMP	L
+03ec	JZ	0x03f3
+03ef	SHLD	0xff07
+03f2	RET
+
+03f3	LXI	H, 0xf0a4
+03f6	MVI	M, 0x0d
+03f8	INX	H
+03f9	MVI	M, 0x0a
+03fb	POP	PSW
+03fc	JMP	0x0399
+03ff	IN	0x68
+0401	CPI	0xa5
+0403	JZ	0x0411
+0406	LDA	0xff09
+0409	ORA	A
+040a	JNZ	0x0411
+040d	MVI	A, 0x02
+040f	OUT	0x78
+0411	IN	0x48
+0413	MVI	A, 0x40
+0415	OUT	0x78
+0417	JMP	0x0626
+041a	MOV	D, M
+041b	INX	H
+041c	MOV	E, M
+041d	MVI	B, 0x00
+041f	MOV	M, B
+0420	DCX	H
+0421	MOV	M, B
+0422	EI			; enable interrupts
+0423	RAL
+0424	JC	0x0465
+0427	LHLD	 0xff00
+042a	CALL	0x0448
+042d	MOV	M, D
+042e	INX	H
+042f	SHLD	0xff00
+0432	MOV	A, M
+0433	ORD	0x80
+0435	MOV	M, A
+0436	LHLD	 0xfffa
+0439	MOV	A, L
+043a	CPI	0xee
+043c	JNZ	0x0442
+043f	LXI	H, 0xffce
+0442	INX	H
+0443	INX	H
+0444	SHLD	0xfffa
+0447	RET
+
+0448	MOV	A, D
+0449	CPI	0x5f
+044b	JNZ	0x0451
+044e	DCR	D
+044f	DCR	E
+0450	RET
+
+0451	CPI	0x5e
+0453	RNZ
+0454	DCR	D
+0455	RAR
+0456	RET
+
+0457	CPI	0xb6
+0459	JNZ	0x045F
+045c	DCR	D
+045d	INR	E
+045e	RET
+
+045f	CPI	0xb8
+0461	RNZ
+0462	DCR	D
+0463	MVI	E, 0xc9
+0465	RAL
+0466	JC	0x0497
+0469	MOV	A, D
+046a	CPI	0xa9
+046c	JZ	0x04c7
+046f	CPI	0xa7
+0471	JZ	0x04ce
+0474	CPI	0xa2
+0476	JZ	0x04d5
+0479	CPI	0xa0
+047b	JZ	0x0519
+047e	CPI	0xa3
+0480	JZ	0x0599
+0483	CPI	0xa4
+0485	JZ	0x0491
+0488	CALL	0x0457
+048b	JZ	0x0427
+048e	JMP	0x0436
+0491	CALL	0x0543
+0494	JMP	0x0436
+0497	MOV	A, E
+0498	RAL
+0499	JC	0x0562
+049c	MOV	A, D
+049d	ANI	0x1f
+049f	MOV	D, A
+04a0	CALL	0x0724
+04a3	LXI	H, 0x0000
+04a6	MOV	L, D
+04a7	PUSH	D
+04a8	LDA	0xff02
+04ab	CALL	0x07af
+04ae	RAR
+04af	CC	0x07ba
+04b2	XCHG
+04b3	LXI	H, 0xc000	; display mem
+04b6	DAD	D
+04b7	POP	D
+04b8	MOV	C, E
+04b9	XCHG
+04ba	LHLD	 0xfffc
+04bd	XCHG
+04be	MOV	M, C
+04bf	INX	H
+04c0	DCR	E
+04c1	JNZ	0x04BE
+04c4	JMP	0x0436
+04c7	MVI	A, 0x04
+04c9	OUT	0x50
+04cb	JMP	0x0436
+04ce	MVI	A, 0x01
+04d0	OUT	0x50
+04d2	JMP	0x0436
+04d5	CALL	0x0724
+04d8	MOV	A, E
+04d9	ANI	0x3f
+04db	LXI	H, 0x0000
+04de	MOV	L, A
+04df	LDA	0xff02
+04e2	CALL	0x07af
+04e5	RAR
+04e6	CC	0x07ba
+04e9	LXI	B, 0xc000	; display mem
+04ec	DAD	B
+04ed	MOV	B, H
+04ee	MOV	C, L
+04ef	XCHG
+04f0	LHLD	 0xfffc
+04f3	XCHG
+04f4	DAD	D
+04f5	LDAX	B
+04f6	MOV	M, A
+04f7	INX	H
+04f8	INX	B
+04f9	DCR	E
+04fa	JNZ	0x04F5
+04fd	JMP	0x0436
+0500	LDA	0xff03
+0503	RAR
+0504	JNC	0x0627
+0507	CALL	0x078f
+050a	MVI	A, 0x90
+050c	OUT	0x78
+050e	MVI	A, 0xaa
+0510	OUT	0x70
+0512	MVI	A, 0xff
+0514	OUT	0x68
+0516	JMP	0x0627
+0519	CALL	0x0724
+051c	LXI	D, 0xc000	; display mem
+051f	LDA	0xff02
+0522	RAR
+0523	JC	0x052f
+0526	LXI	H, 0x0028
+0529	LXI	B, 0xfe48
+052c	JMP	0x0535
+052f	LXI	H, 0x0050
+0532	LXI	B, 0xf8d0
+0535	DAD	D
+0536	MOV	A, M
+0537	STAX	D
+0538	INX	H
+0539	INX	D
+053a	INX	B
+053b	MOV	A, B
+053c	ORA	A
+053d	JNZ	0x0536
+0540	JMP	0x0436
+0543	LXI	H, 0xc000	; display mem
+0546	LXI	D, 0xf7ff
+0549	MOV	A, M
+054a	ANA	B
+054b	MOV	M, A
+054c	INX	H
+054d	INX	D
+054e	MOV	A, D
+054f	CPI	0x00
+0551	JNZ	0x0549
+0554	MOV	A, B
+0555	CPI	0x00
+0557	RNZ
+0558	LXI	H, 0xc050
+055b	MVI	A, 0x80
+055d	MOV	M, A
+055e	SHLD	0xff00
+0561	RET
+
+0562	MVI	A, 0x02
+0564	OUT	0x50
+0566	XRA	A
+0567	STA	0xff06
+056a	STA	0xff0e
+056d	CALL	0x0724
+0570	LXI	H, 0x0000
+0573	MOV	A, D
+0574	ANI	0x3f
+0576	MOV	L, A
+0577	PUSH	D
+0578	LDA	0xff02
+057b	CALL	0x07af
+057e	RAR
+057f	CC	0x07ba
+0582	XCHG
+0583	LXI	H, 0xbfff
+0586	DAD	D
+0587	POP	D
+0588	DCR	D
+0589	NOP
+058a	MOV	A, E
+058b	ANI	0x7f
+058d	MOV	E, A
+058e	DAD	D
+058f	SHLD	0xff00
+0592	MOV	A, M
+0593	ORD	0x80
+0595	MOV	M, A
+0596	JMP	0x0436
+0599	LHLD	 0xff04
+059c	MOV	D, M
+059d	INX	H
+059e	SHLD	0xff04
+05a1	MOV	A, L
+05a2	CPI	0x20
+05a4	MOV	A, E
+05a5	JNZ	0x05AE
+05a8	LXI	H, 0xff14
+05ab	SHLD	0xff04
+05ae	CMP	D
+05af	CNZ	0x05b5
+05b2	JMP	0x0436
+05b5	MVI	A, 0x01
+05b7	OUT	0x50
+05b9	DI			; disable interrupts
+05ba	STA	0xff06
+05bd	LXI	B, 0x07ce
+05c0	CALL	0x079d
+05c3	RET
+
+; RST-6 handler
+05c4	MVI	A, 0x64
+05c6	OUT	0x78
+05c8	POP	PSW
+05c9	PUSH	B
+05ca	PUSH	D
+05cb	PUSH	H
+05cc	RAL
+05cd	JC	0x062d
+05d0	MVI	A, 0x04
+05d2	OUT	0x78
+05d4	LXI	D, 0x0000
+05d7	IN	0x68
+05d9	MOV	D, A
+05da	CPI	0xa3
+05dc	JZ	0x05ec
+05df	CPI	0xa2
+05e1	JZ	0x05ec
+05e4	RAL
+05e5	JNC	0x05ff
+05e8	RAL
+05e9	JNC	0x05ff
+05ec	IN	0x78
+05ee	RAR
+05ef	CNC	0x072c
+05f2	JNC	0x05ec
+05f5	CALL	0x0018
+05f8	MVI	A, 0x40
+05fa	OUT	0x78
+05fc	IN	0x68
+05fe	MOV	E, A
+05ff	NOP
+0600	LHLD	 0xfff8
+0603	MOV	A, M
+0604	ORA	A
+0605	JNZ	0x0000
+0608	MOV	M, D
+0609	MOV	A, D
+060a	ORA	A
+060b	JZ	0x0000
+060e	INX	H
+060f	MOV	M, E
+0610	INX	H
+0611	MOV	A, L
+0612	CPI	0xf0
+0614	JNZ	0x061A
+0617	LXI	H, 0xffd0
+061a	SHLD	0xfff8
+061d	MOV	A, M
+061e	ORA	A
+061f	JNZ	0x0626
+0622	MVI	A, 0x08
+0624	OUT	0x78
+0626	EI			; enable interrupts
+
+0627	POP	H
+0628	POP	D
+0629	POP	B
+062a	POP	PSW
+062b	EI			; enable interrupts
+062c	RET
+
+062d	IN	0x68
+062f	ANI	0xc0
+0631	CPI	0xc0
+0633	JZ	0x063c
+0636	EI			; enable interrupts
+0637	IN	0x48
+0639	JMP	0x0648
+063c	IN	0x78
+063e	RAR
+063f	CNC	0x072c
+0642	JNC	0x063c
+0645	CALL	0x0018
+0648	MVI	A, 0x40
+064a	OUT	0x78
+064c	LHLD	 0xfff8
+064f	JMP	0x061d
+
+; RST-4 handler
+; Keyboard input handler
+
+0652	IN	0x50
+0654	MOV	D, A
+0655	MVI	A, 0x9b
+0657	CMP	D
+0658	JZ	0x0744
+065b	LDA	0xff06
+065e	RAR
+065f	JC	0x0627
+0662	IN	0x48
+0664	ANI	0x07
+0666	JNZ	0x0687
+0669	MVI	E, 0xff
+066b	MVI	C, 0x90
+066d	CALL	0x078f
+0670	MOV	A, C
+0671	OUT	0x78
+0673	CALL	0x078f
+0676	MOV	A, D
+0677	OUT	0x70
+0679	LDA	0xff03
+067c	RAR
+067d	JC	0x06f3
+0680	MOV	A, E
+0681	OUT	0x68
+0683	EI			; enable interrupts
+0684	JMP	0x0627
+
+0687	MOV	E, D
+0688	CPI	0x02
+068a	JNZ	0x06D3
+068d	DCR	D
+068e	ADD	H
+068f	MVI	A, 0xdf
+0691	ANA	E
+0692	CPI	0x54
+0694	JZ	0x06b7
+0697	CPI	0x58
+0699	JNZ	0x069D
+069c	RST	7
+069d	CPI	0x53
+069f	JZ	0x06c7
+06a2	CPI	0x50
+06a4	JZ	0x02af
+06a7	CPI	0x44
+06a9	JNZ	0x06EE
+06ac	LDA	0x0800
+06af	CPI	0xff
+06b1	JNZ	0x0800
+06b4	JMP	0x06ee
+06b7	LXI	H, 0xf01f
+06ba	SHLD	0xff07
+06bd	IN	0x70
+06bf	ANI	0x10
+06c1	JZ	0x01a5
+06c4	JMP	0x0278
+06c7	IN	0x70
+06c9	ANI	0x10
+06cb	JZ	0x0172
+06ce	MVI	A, 0x0a
+06d0	JMP	0x029d
+06d3	CPI	0x03
+06d5	JNZ	0x06DD
+06d8	DCR	D
+06d9	ADD	M
+06da	JMP	0x06ee
+06dd	CPI	0x06
+06df	JNZ	0x06E7
+06e2	DCR	D
+06e3	ADD	L
+06e4	JMP	0x06ee
+06e7	CPI	0x05
+06e9	JNZ	0x0669
+06ec	DCR	D
+06ed	ADD	D
+06ee	MVI	C, 0x10
+06f0	JMP	0x066d
+06f3	EI			; enable interrupts
+06f4	IN	0x48
+06f6	IN	0x78
+06f8	ANI	0x06
+06fa	JZ	0x070a
+06fd	LHLD	 0xfffa
+0700	MOV	A, M
+0701	ORA	A
+0702	PUSH	D
+0703	CNZ	0x041a
+0706	POP	D
+0707	JMP	0x06f3
+070a	MOV	A, E
+070b	OUT	0x68
+070d	LHLD	 0xff0c
+0710	MOV	M, D
+0711	INX	H
+0712	MOV	A, L
+0713	CPI	0x20
+0715	CZ	0x077d
+0718	MOV	A, E
+0719	CPI	0xff
+071b	JNZ	0x0781
+071e	SHLD	0xff0c
+0721	JMP	0x0627
+0724	LHLD	 0xff00
+0727	MOV	A, M
+0728	ANI	0x7f
+072a	MOV	M, A
+072b	RET
+
+072c	PUSH	PSW
+072d	PUSH	H
+072e	IN	0x48
+0730	LHLD	 0xff12
+0733	INR	L
+0734	JNZ	0x073E
+0737	INR	H
+0738	JNZ	0x073E
+073b	JMP	0x0000
+073e	SHLD	0xff12
+0741	POP	H
+0742	POP	PSW
+0743	RET
+
+0744	LDA	0xff06
+0747	RAR
+0748	JNC	0x0758
+074b	EI			; enable interrupts
+074c	LXI	H, 0xff14
+074f	SHLD	0xff0c
+0752	SHLD	0xff04
+0755	JMP	0x075f
+0758	LDA	0xff0E
+075b	RAR
+075c	JNC	0x0662
+075f	MVI	A, 0x02
+0761	OUT	0x50
+0763	PUSH	D
+0764	LXI	D, 0xc000	; display mem
+0767	LHLD	 0xfffc
+076a	MOV	C, L
+076b	DAD	D
+076c	XRA	A
+076d	MOV	M, A
+076e	INX	H
+076f	DCR	C
+0770	JNZ	0x076D
+0773	POP	D
+0774	STA	0xff06
+0777	STA	0xff0e
+077a	JMP	0x0662
+077d	LXI	H, 0xff14
+0780	RET
+
+0781	MOV	M, E
+0782	INX	H
+0783	MOV	A, L
+0784	CPI	0x20
+0786	CZ	0x077d
+0789	SHLD	0xff0c
+078c	JMP	0x0627
+
+; subroutine
+078f	IN	0x78
+0791	ANI	0x06
+0793	CNZ	0x072c
+0796	JNZ	0x078F
+0799	CALL	0x0018
+079c	RET
+
+079d	PUSH	B
+079e	LXI	B, 0xc000	; display mem
+07a1	LHLD	 0xfffc
+07a4	DAD	B
+07a5	POP	B
+07a6	LDAX	B
+07a7	MOV	M, A
+07a8	INX	H
+07a9	INX	B
+07aa	ORA	A
+07ab	JNZ	0x07A6
+07ae	RET
+
+07af	PUSH	D
+07b0	DAD	H
+07b1	DAD	H
+07b2	DAD	H
+07b3	MOV	D, H
+07b4	MOV	E, L
+07b5	DAD	H
+07b6	DAD	H
+07b7	DAD	D
+07b8	POP	D
+07b9	RET
+
+07ba	DAD	H
+07bb	RET
+
+07bc	MOV	D, B
+07bd	MOV	D, D
+07be	MOV	C, C
+07bf	MOV	C, M
+07c0	MOV	D, H
+07c1	MOV	B, L
+07c2	MOV	D, D
+07c3	RIM
+07c4	MOV	C, M
+07c5	MOV	C, A
+07c6	MOV	D, H
+07c7	RIM
+07c8	MOV	D, D
+07c9	MOV	B, L
+07ca	MOV	B, C
+07cb	MOV	B, H
+07cc	MOV	E, C
+07cd	NOP
+07ce	MOV	E, B
+07cf	MOV	C, L
+07d0	MOV	C, C
+07d1	MOV	D, E
+07d2	MOV	D, E
+07d3	MOV	C, C
+07d4	MOV	C, A
+07d5	MOV	C, M
+07d6	RIM
+07d7	MOV	B, L
+07d8	MOV	D, D
+07d9	MOV	D, D
+07da	MOV	C, A
+07db	MOV	D, D
+07dc	RIM
+07dd	NOP
+07de	NOP
+07df	NOP
+07e0	NOP
+07e1	NOP
+07e2	NOP
+07e3	NOP
+07e4	NOP
+07e5	NOP
+07e6	NOP
+07e7	NOP
+07e8	NOP
+07e9	NOP
+07ea	NOP
+07eb	NOP
+07ec	NOP
+07ed	NOP
+07ee	NOP
+07ef	NOP
+07f0	NOP
+07f1	NOP
+07f2	NOP
+07f3	NOP
+07f4	NOP
+07f5	NOP
+07f6	NOP
+07f7	NOP
+07f8	NOP
+07f9	NOP
+07fa	NOP
+07fb	NOP
+07fc	NOP
+07fd	NOP
+07fe	NOP
+07ff	NOP
