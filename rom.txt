@@ -1,3 +1,4 @@
+;
 ; This is a disassembly of the roms for a Entrex 6xx terminal board from AJ
 ;
 ; 2-18-2023 Tom Trebisky 
@@ -84,1096 +85,1072 @@
 ; ----------------------------------
 
 ; Reset starts here.
-0000	NOP			; start here
-0001	DI			; disable interrupts
-0002	LXI	SP, 0xffd0	; set up stack
-0005	JMP	0x0040		; jump to Main
+0000 00    	nop
+0001 f3    	di
+0002 31d0ff	lxi	SP, 0xffd0
+0005 c34000	jmp	0x0040
+0008 00    	nop
 
-; RST-1
-0008	NOP			; joins hard reboot
-0009	JMP	0x0038
-000c	JMP	0x0038
-000f	NOP
+0009 c33800	jmp	0x0038
+000c c33800	jmp	0x0038
+000f 00    	nop
+0010 00    	nop
+0011 c33800	jmp	0x0038
+0014 c33800	jmp	0x0038
+0017 00    	nop
+0018 210080	lxi	H, 0x8000
 
-; RST-2
-0010	NOP			; joins hard reboot
-0011	JMP	0x0038
-0014	JMP	0x0038
-0017	NOP
+001b 2212ff	shld	0xff12
+001e c9    	ret
+001f 00    	nop
 
-; RST-3 (this gets called from various places)
-0018	LXI	H, 0x8000
-001b	SHLD	0xff12
-001e	RET
-001f	NOP
+0020 f5    	push	PSW
+0021 c5    	pusH	B
+0022 d5    	push	D
+0023 e5    	push	H
+0024 c35206	jmp	0x0652
+0027 00    	nop
 
-; RST-4
-0020	PUSH	PSW		; keyboard input handler
-0021	PUSH	B
-0022	PUSH	D
-0023	PUSH	H
-0024	JMP	0x0652
-0027	NOP
+0028 f5    	push	PSW
+0029 c5    	pusH	B
+002a d5    	push	D
+002b e5    	push	H
+002c c36703	jmp	0x0367
+002f 00    	nop
 
-; RST-5
-0028	PUSH	PSW
-0029	PUSH	B
-002a	PUSH	D
-002b	PUSH	H
-002c	JMP	0x0367
-002f	NOP
+0030 f5    	push	PSW
+0031 db78  	in	0x78
+0033 f5    	push	PSW
+0034 c3c405	jmp	0x05c4
+0037 00    	nop
 
-; RST-6
-0030	PUSH	PSW
-0031	IN	0x78
-0033	PUSH	PSW
-0034	JMP	0x05c4
-0037	NOP
+0038 f3    	di
+0039 31d0ff	lxi	SP, 0xffd0
+003c c30000	jmp	0x0000
+003f 00    	nop
 
-; RST-7
-0038	DI			; hard reboot
-0039	LXI	SP, 0xffd0
-003c	JMP	0x0000
-003f	NOP
+; start
+0040 3e06  	mvi	A, 0x06
+0042 d378  	out	0x78
+0044 2100f0	lxi	H, 0xf000
+0047 0600  	mvi	B, 0x00
+0049 70    	mov	M, B
+004a 23    	inx	H
+004b 7c    	mov	A, H
+004c b7    	ora	A
+004d c24900	jnz	0x0049
+0050 2114ff	lxi	H, 0xff14
+0053 2204ff	shld	0xff04
+0056 220cff	shld	0xff0c
+0059 2120f0	lxi	H, 0xf020
+005c 2207ff	shld	0xff07
+005f 214206	lxi	H, 0x0642
+0062 220aff	shld	0xff0a
+0065 21d0ff	lxi	H, 0xffd0
+0068 22faff	shld	0xfffa
+006b 22f8ff	shld	0xfff8
+006e db78  	in	0x78
+0070 e620  	ani	0x20
+0072 c27a00	jnz	0x007a
+0075 3e01  	mvi	A, 0x01
+0077 3203ff	sta	0xff03
+007a 3e10  	mvi	A, 0x10
+007c d360  	out	0x60
+007e af    	xra	A
+007f d360  	out	0x60
+0081 db40  	in	0x40
+0083 17    	ral
+0084 d28900	jnc	0x0089
+0087 067f  	mvi	B, 0x7f
+0089 cd4305	calL	0x0543
+008c d340  	out	0x40
+008e 3e02  	mvi	A, 0x02
+0090 d350  	out	0x50
+0092 db50  	in	0x50
+0094 212800	lxi	H, 0x0028
+0097 db40  	in	0x40
+0099 2f    	cma
+009a e601  	ani	0x01
+009c 3202ff	sta	0xff02
+009f 1f    	rar
+00a0 d2a600	jnc	0x00a6
+00a3 215000	lxi	H, 0x0050
+00a6 22fcff	shld	0xfffc
+00a9 fb    	ei
+00aa 2afaff	lhld	 0xfffa
+00ad 7e    	mov	A, M
+00ae b7    	ora	A
+00af c41a04	cnz	0x041a
+00b2 3a09ff	lda	0xff09
+00b5 1f    	rar
+00b6 d2ca00	jnc	0x00ca
+00b9 3a0eff	lda	0xff0e
+00bc 1f    	rar
+00bd daca00	jc	0x00ca
+00c0 db70  	in	0x70
+00c2 e610  	ani	0x10
+00c4 c44d02	cnz	0x024d
+00c7 cce100	cz	0x00e1
+00ca db48  	in	0x48
+00cc e640  	ani	0x40
+00ce c42000	cnz	0x0020
+00d1 3a03ff	lda	0xff03
+00d4 1f    	rar
+00d5 da9400	jc	0x0094
+00d8 3e40  	mvi	A, 0x40
+00da d378  	out	0x78
+00dc db68  	in	0x68
+00de c39400	jmp	0x0094
+00e1 f5    	push	PSW
+00e2 c5    	pusH	B
+00e3 d5    	push	D
+00e4 e5    	push	H
+00e5 2a07ff	lhld	 0xff07
+00e8 7e    	mov	A, M
+00e9 fe0d  	cpi	0x0d
+00eb ca4501	jz	0x0145
+00ee fe0a  	cpi	0x0a
+00f0 ca7201	jz	0x0172
+00f3 fe0b  	cpi	0x0b
+00f5 caa501	jz	0x01a5
+00f8 fe20  	cpi	0x20
+00fa cadd01	jz	0x01dd
+00fd cd1e02	calL	0x021e
+0100 db70  	in	0x70
+0102 e608  	ani	0x08
+0104 ca2706	jz	0x0627
+0107 7e    	mov	A, M
+0108 feb8  	cpi	0xb8
+010a cc4a02	cz	0x024a
+010d feb6  	cpi	0xb6
+010f ca2e02	jz	0x022e
+0112 d358  	out	0x58
+0114 3e80  	mvi	A, 0x80
+0116 d360  	out	0x60
+0118 af    	xra	A
+0119 d360  	out	0x60
+011b 23    	inx	H
+011c 2207ff	shld	0xff07
+011f cd1e02	calL	0x021e
+0122 db48  	in	0x48
+0124 db70  	in	0x70
+0126 e604  	ani	0x04
+0128 ca1f01	jz	0x011f
+012b 3a0bff	lda	0xff0b
+012e 5f    	mov	E, A
+012f 16    	dcr	D
+0130 00    	nop
+0131 2a0fff	lhld	 0xff0f
+0134 19    	dad	D
+0135 220fff	shld	0xff0f
+0138 7b    	mov	A, E
+0139 d358  	out	0x58
+013b 3e40  	mvi	A, 0x40
+013d d360  	out	0x60
+013f af    	xra	A
+0140 d360  	out	0x60
+0142 c32706	jmp	0x0627
+0145 cd1e02	calL	0x021e
+0148 db70  	in	0x70
+014a e604  	ani	0x04
+014c ca2706	jz	0x0627
+014f 2a07ff	lhld	 0xff07
+0152 23    	inx	H
+0153 2207ff	shld	0xff07
+0156 2a0fff	lhld	 0xff0f
+0159 7d    	mov	A, L
+015a d358  	out	0x58
+015c 7c    	mov	A, H
+015d f604  	ord	0x04
+015f d360  	out	0x60
+0161 f640  	ord	0x40
+0163 d360  	out	0x60
+0165 e6bf  	ani	0xbf
+0167 d360  	out	0x60
+0169 210000	lxi	H, 0x0000
+016c 220fff	shld	0xff0f
+016f c32706	jmp	0x0627
+0172 cd1e02	calL	0x021e
+0175 db70  	in	0x70
+0177 e602  	ani	0x02
+0179 db48  	in	0x48
+017b ca7201	jz	0x0172
+017e 3a0aff	lda	0xff0a
+0181 57    	mov	D, A
+0182 3a11ff	lda	0xff11
+0185 3c    	inr	A
+0186 ba    	cmp	D
+0187 c28b01	jnz	0x018b
+018a af    	xra	A
+018b 3211ff	sta	0xff11
+018e 3e08  	mvi	A, 0x08
+0190 d358  	out	0x58
+0192 3e20  	mvi	A, 0x20
+0194 d360  	out	0x60
+0196 af    	xra	A
+0197 d360  	out	0x60
+0199 2120f0	lxi	H, 0xf020
+019c 2207ff	shld	0xff07
+019f 3209ff	sta	0xff09
+01a2 c30005	jmp	0x0500
+01a5 cd1e02	calL	0x021e
+01a8 db70  	in	0x70
+01aa e602  	ani	0x02
+01ac db48  	in	0x48
+01ae caa501	jz	0x01a5
+01b1 3a11ff	lda	0xff11
+01b4 57    	mov	D, A
+01b5 3a0aff	lda	0xff0a
+01b8 92    	sub	D
+01b9 6f    	mov	L, A
+01ba 2600  	mvi	H, 0x00
+01bc 29    	dad	H
+01bd 29    	dad	H
+01be 29    	dad	H
+01bf 7d    	mov	A, L
+01c0 d358  	out	0x58
+01c2 7c    	mov	A, H
+01c3 e603  	ani	0x03
+01c5 d360  	out	0x60
+01c7 f620  	ord	0x20
+01c9 d360  	out	0x60
+01cb e6df  	ani	0xdf
+01cd d360  	out	0x60
+01cf 2a07ff	lhld	 0xff07
+01d2 23    	inx	H
+01d3 2207ff	shld	0xff07
+01d6 af    	xra	A
+01d7 3211ff	sta	0xff11
+01da c32706	jmp	0x0627
+01dd cd1e02	calL	0x021e
+01e0 db48  	in	0x48
+01e2 db70  	in	0x70
+01e4 e604  	ani	0x04
+01e6 cadd01	jz	0x01dd
+01e9 3a0bff	lda	0xff0b
+01ec 4f    	mov	C, A
+01ed 0600  	mvi	B, 0x00
+01ef eb    	xchg			; hl <--> de
+01f0 210000	lxi	H, 0x0000
+01f3 09    	dad	B
+01f4 13    	inx	D
+01f5 1a    	ldax	D
+01f6 fe20  	cpi	0x20
+01f8 caf301	jz	0x01f3
+01fb eb    	xchg			; hl <--> de
+01fc 2207ff	shld	0xff07
+01ff fe0d  	cpi	0x0d
+0201 ca2706	jz	0x0627
+0204 db48  	in	0x48
+0206 7b    	mov	A, E
+0207 d358  	out	0x58
+0209 7a    	mov	A, D
+020a d360  	out	0x60
+020c f640  	ord	0x40
+020e d360  	out	0x60
+0210 e6bf  	ani	0xbf
+0212 d360  	out	0x60
+0214 2a0fff	lhld	 0xff0f
+0217 19    	dad	D
+0218 220fff	shld	0xff0f
+021b c32706	jmp	0x0627
+021e db70  	in	0x70
+0220 1f    	rar
+0221 da2a02	jc	0x022a
+0224 e610  	ani	0x10
+0226 ca2a02	jz	0x022a
+0229 c9    	ret
 
-; Main code starts here.
-0040	MVI	A, 0x06
-0042	OUT	0x78
+022a f1    	pop	PSW
+022b c35703	jmp	0x0357
+022e 3e3d  	mvi	A, 0x3d
+0230 d358  	out	0x58
+0232 3e80  	mvi	A, 0x80
+0234 d360  	out	0x60
+0236 af    	xra	A
+0237 d360  	out	0x60
+0239 cd1e02	calL	0x021e
+023c db48  	in	0x48
+023e db70  	in	0x70
+0240 e608  	ani	0x08
+0242 ca3902	jz	0x0239
+0245 3e2f  	mvi	A, 0x2f
+0247 c31201	jmp	0x0112
+024a 3e20  	mvi	A, 0x20
+024c c9    	ret
 
-0044	LXI	H, 0xf000
-0047	MVI	B, 0x00
+024d f5    	push	PSW
+024e c5    	pusH	B
+024f d5    	push	D
+0250 e5    	push	H
+0251 3e00  	mvi	A, 0x00
+0253 d360  	out	0x60
+0255 cd8e02	calL	0x028e
+0258 e608  	ani	0x08
+025a ca2706	jz	0x0627
+025d 2a07ff	lhld	 0xff07
+0260 7e    	mov	A, M
+0261 fe0a  	cpi	0x0a
+0263 caa002	jz	0x02a0
+0266 feb8  	cpi	0xb8
+0268 cc4a02	cz	0x024a
+026b feb6  	cpi	0xb6
+026d cc4a02	cz	0x024a
+0270 fe0b  	cpi	0x0b
+0272 c27d02	jnz	0x027d
+0275 c37b02	jmp	0x027b
+0278 cd8e02	calL	0x028e
+027b 3e0c  	mvi	A, 0x0c
+027d 2f    	cma
+027e d358  	out	0x58
+0280 3e80  	mvi	A, 0x80
+0282 d360  	out	0x60
+0284 af    	xra	A
+0285 d360  	out	0x60
+0287 23    	inx	H
+0288 2207ff	shld	0xff07
+028b c32706	jmp	0x0627
+028e db70  	in	0x70
+0290 1f    	rar
+0291 da9902	jc	0x0299
+0294 1f    	rar
+0295 d29902	jnc	0x0299
+0298 c9    	ret
 
-0049	MOV	M, B		; loop to clear memory
-004a	INX	H
-004b	MOV	A, H
-004c	ORA	A
-004d	JNZ	0x0049
+0299 c1    	pop	B
+029a c35703	jmp	0x0357
+029d cd8e02	calL	0x028e
+02a0 3ef5  	mvi	A, 0xf5
+02a2 d358  	out	0x58
+02a4 3e80  	mvi	A, 0x80
+02a6 d360  	out	0x60
+02a8 af    	xra	A
+02a9 d360  	out	0x60
+02ab af    	xra	A
+02ac c39901	jmp	0x0199
+02af 3e05  	mvi	A, 0x05
+02b1 d378  	out	0x78
+02b3 0628  	mvi	B, 0x28
+02b5 0e0c  	mvi	C, 0x0c
+02b7 3a02ff	lda	0xff02
+02ba 1f    	rar
+02bb d2c202	jnc	0x02c2
+02be 0650  	mvi	B, 0x50
+02c0 0e18  	mvi	C, 0x18
+02c2 78    	mov	A, B
+02c3 3222ff	sta	0xff22
+02c6 2120f0	lxi	H, 0xf020
+02c9 1100c0	lxi	D, 0xc000
+02cc db48  	in	0x48
+02ce 1a    	ldax	D
+02cf e67f  	ani	0x7f
+02d1 fe00  	cpi	0x00
+02d3 c2db02	jnz	0x02db
+02d6 3e20  	mvi	A, 0x20
+02d8 c30003	jmp	0x0300
+02db fe1d  	cpi	0x1d
+02dd c2e502	jnz	0x02e5
+02e0 3e5f  	mvi	A, 0x5f
+02e2 c30003	jmp	0x0300
+02e5 fe1e  	cpi	0x1e
+02e7 c2ef02	jnz	0x02ef
+02ea 3eb8  	mvi	A, 0xb8
+02ec c30003	jmp	0x0300
+02ef fe1c  	cpi	0x1c
+02f1 c2f902	jnz	0x02f9
+02f4 3eb6  	mvi	A, 0xb6
+02f6 c30003	jmp	0x0300
+02f9 fe1f  	cpi	0x1f
+02fb c20003	jnz	0x0300
+02fe 3e5e  	mvi	A, 0x5e
+0300 77    	mov	M, A
+0301 23    	inx	H
+0302 13    	inx	D
+0303 05    	dcr	B
+0304 c2cc02	jnz	0x02cc
+0307 360d  	mvi	M, 0x0d
+0309 23    	inx	H
+030a 360a  	mvi	M, 0x0a
+030c 2120f0	lxi	H, 0xf020
+030f 2207ff	shld	0xff07
+0312 3e01  	mvi	A, 0x01
+0314 3209ff	sta	0xff09
+0317 3a0eff	lda	0xff0e
+031a 1f    	rar
+031b da3203	jc	0x0332
+031e 3a09ff	lda	0xff09
+0321 1f    	rar
+0322 d24503	jnc	0x0345
+0325 db70  	in	0x70
+0327 e610  	ani	0x10
+0329 c44d02	cnz	0x024d
+032c cce100	cz	0x00e1
+032f c31703	jmp	0x0317
+0332 3e10  	mvi	A, 0x10
+0334 d360  	out	0x60
+0336 af    	xra	A
+0337 d360  	out	0x60
+0339 3209ff	sta	0xff09
+033c 2120f0	lxi	H, 0xf020
+033f 2207ff	shld	0xff07
+0342 c36901	jmp	0x0169
+0345 3a22ff	lda	0xff22
+0348 47    	mov	B, A
+0349 2120f0	lxi	H, 0xf020
+034c 2207ff	shld	0xff07
+034f 0d    	dcr	C
+0350 c2cc02	jnz	0x02cc
+0353 c32706	jmp	0x0627
+0356 ff    	rst	7
+0357 01bc07	lxi	B, 0x07bc
+035a cd9d07	calL	0x079d
+035d 3e01  	mvi	A, 0x01
+035f d350  	out	0x50
+0361 320eff	sta	0xff0e
+0364 c32706	jmp	0x0627
+0367 3e61  	mvi	A, 0x61
+0369 d378  	out	0x78
+036b db78  	in	0x78
+036d e640  	ani	0x40
+036f c2ff03	jnz	0x03ff
+0372 db68  	in	0x68
+0374 57    	mov	D, A
+0375 fe0a  	cpi	0x0a
+0377 ca8c03	jz	0x038c
+037a fea5  	cpi	0xa5
+037c cab403	jz	0x03b4
+037f e6c0  	ani	0xc0
+0381 fec0  	cpi	0xc0
+0383 caca03	jz	0x03ca
+0386 cde403	calL	0x03e4
+0389 c30d04	jmp	0x040d
+038c 2a07ff	lhld	 0xff07
+038f 2b    	dcx	H
+0390 7e    	mov	A, M
+0391 fe0d  	cpi	0x0d
+0393 c2a703	jnz	0x03a7
+0396 cde403	calL	0x03e4
+0399 2120f0	lxi	H, 0xf020
+039c 2207ff	shld	0xff07
+039f 3e01  	mvi	A, 0x01
+03a1 3209ff	sta	0xff09
+03a4 c32606	jmp	0x0626
+03a7 16    	dcr	D
+03a8 0d    	dcr	C
+03a9 cde403	calL	0x03e4
+03ac 16    	dcr	D
+03ad 0a    	ldax	B
+03ae cde403	calL	0x03e4
+03b1 c39903	jmp	0x0399
+03b4 db78  	in	0x78
+03b6 1f    	rar
+03b7 d42c07	cnc	0x072c
+03ba d2b403	jnc	0x03b4
+03bd cd1800	calL	0x0018
+03c0 db68  	in	0x68
+03c2 e63f  	ani	0x3f
+03c4 320bff	sta	0xff0b
+03c7 c32606	jmp	0x0626
+03ca db78  	in	0x78
+03cc 1f    	rar
+03cd d42c07	cnc	0x072c
+03d0 d2ca03	jnc	0x03ca
+03d3 cd1800	calL	0x0018
+03d6 db68  	in	0x68
+03d8 e67f  	ani	0x7f
+03da 320aff	sta	0xff0a
+03dd af    	xra	A
+03de 3211ff	sta	0xff11
+03e1 c32606	jmp	0x0626
+03e4 2a07ff	lhld	 0xff07
+03e7 72    	mov	M, D
+03e8 23    	inx	H
+03e9 3ea8  	mvi	A, 0xa8
+03eb bd    	cmp	L
+03ec caf303	jz	0x03f3
+03ef 2207ff	shld	0xff07
+03f2 c9    	ret
 
-0050	LXI	H, 0xff14
-0053	SHLD	0xff04
-0056	SHLD	0xff0c
-0059	LXI	H, 0xf020
-005c	SHLD	0xff07
-005f	LXI	H, 0x0642
-0062	SHLD	0xff0a
-0065	LXI	H, 0xffd0
-0068	SHLD	0xfffa
-006b	SHLD	0xfff8
-006e	IN	0x78
-0070	ANI	0x20
-0072	JNZ	0x007A
-0075	MVI	A, 0x01
-0077	STA	0xff03
-007a	MVI	A, 0x10
-007c	OUT	0x60
-007e	XRA	A
-007f	OUT	0x60
-0081	IN	0x40
-0083	RAL
-0084	JNC	0x0089
-0087	MVI	B, 0x7f
-0089	CALL	0x0543
-008c	OUT	0x40
-008e	MVI	A, 0x02
-0090	OUT	0x50
-0092	IN	0x50
-0094	LXI	H, 0x0028
-0097	IN	0x40
-0099	CMA
-009a	ANI	0x01
-009c	STA	0xff02
-009f	RAR
-00a0	JNC	0x00a6
-00a3	LXI	H, 0x0050
-00a6	SHLD	0xfffc
-00a9	EI			; enable interrupts
-00aa	LHLD	 0xfffa
-00ad	MOV	A, M
-00ae	ORA	A
-00af	CNZ	0x041a
-00b2	LDA	0xff09
-00b5	RAR
-00b6	JNC	0x00ca
-00b9	LDA	0xff0E
-00bc	RAR
-00bd	JC	0x00ca
-00c0	IN	0x70
-00c2	ANI	0x10
-00c4	CNZ	0x024d
-00c7	CZ	0x00e1
-00ca	IN	0x48
-00cc	ANI	0x40
-00ce	CNZ	0x0020
-00d1	LDA	0xff03
-00d4	RAR
-00d5	JC	0x0094
-00d8	MVI	A, 0x40
-00da	OUT	0x78
-00dc	IN	0x68
-00de	JMP	0x0094
-00e1	PUSH	PSW
-00e2	PUSH	B
-00e3	PUSH	D
-00e4	PUSH	H
-00e5	LHLD	 0xff07
-00e8	MOV	A, M
-00e9	CPI	0x0d
-00eb	JZ	0x0145
-00ee	CPI	0x0a
-00f0	JZ	0x0172
-00f3	CPI	0x0b
-00f5	JZ	0x01a5
-00f8	CPI	0x20
-00fa	JZ	0x01dd
-00fd	CALL	0x021e
-0100	IN	0x70
-0102	ANI	0x08
-0104	JZ	0x0627
-0107	MOV	A, M
-0108	CPI	0xb8
-010a	CZ	0x024a
-010d	CPI	0xb6
-010f	JZ	0x022e
-0112	OUT	0x58
-0114	MVI	A, 0x80
-0116	OUT	0x60
-0118	XRA	A
-0119	OUT	0x60
-011b	INX	H
-011c	SHLD	0xff07
-011f	CALL	0x021e
-0122	IN	0x48
-0124	IN	0x70
-0126	ANI	0x04
-0128	JZ	0x011f
-012b	LDA	0xff0b
-012e	MOV	E, A
-012f	DCR	D
-0130	NOP
-0131	LHLD	 0xff0f
-0134	DAD	D
-0135	SHLD	0xff0f
-0138	MOV	A, E
-0139	OUT	0x58
-013b	MVI	A, 0x40
-013d	OUT	0x60
-013f	XRA	A
-0140	OUT	0x60
-0142	JMP	0x0627
-0145	CALL	0x021e
-0148	IN	0x70
-014a	ANI	0x04
-014c	JZ	0x0627
-014f	LHLD	 0xff07
-0152	INX	H
-0153	SHLD	0xff07
-0156	LHLD	 0xff0f
-0159	MOV	A, L
-015a	OUT	0x58
-015c	MOV	A, H
-015d	ORD	0x04
-015f	OUT	0x60
-0161	ORD	0x40
-0163	OUT	0x60
-0165	ANI	0xbf
-0167	OUT	0x60
-0169	LXI	H, 0x0000
-016c	SHLD	0xff0f
-016f	JMP	0x0627
-0172	CALL	0x021e
-0175	IN	0x70
-0177	ANI	0x02
-0179	IN	0x48
-017b	JZ	0x0172
-017e	LDA	0xff0A
-0181	MOV	D, A
-0182	LDA	0xff11
-0185	INR	A
-0186	CMP	D
-0187	JNZ	0x018B
-018a	XRA	A
-018b	STA	0xff11
-018e	MVI	A, 0x08
-0190	OUT	0x58
-0192	MVI	A, 0x20
-0194	OUT	0x60
-0196	XRA	A
-0197	OUT	0x60
-0199	LXI	H, 0xf020
-019c	SHLD	0xff07
-019f	STA	0xff09
-01a2	JMP	0x0500
-01a5	CALL	0x021e
-01a8	IN	0x70
-01aa	ANI	0x02
-01ac	IN	0x48
-01ae	JZ	0x01a5
-01b1	LDA	0xff11
-01b4	MOV	D, A
-01b5	LDA	0xff0A
-01b8	SUB	D
-01b9	MOV	L, A
-01ba	MVI	H, 0x00
-01bc	DAD	H
-01bd	DAD	H
-01be	DAD	H
-01bf	MOV	A, L
-01c0	OUT	0x58
-01c2	MOV	A, H
-01c3	ANI	0x03
-01c5	OUT	0x60
-01c7	ORD	0x20
-01c9	OUT	0x60
-01cb	ANI	0xdf
-01cd	OUT	0x60
-01cf	LHLD	 0xff07
-01d2	INX	H
-01d3	SHLD	0xff07
-01d6	XRA	A
-01d7	STA	0xff11
-01da	JMP	0x0627
-01dd	CALL	0x021e
-01e0	IN	0x48
-01e2	IN	0x70
-01e4	ANI	0x04
-01e6	JZ	0x01dd
-01e9	LDA	0xff0b
-01ec	MOV	C, A
-01ed	MVI	B, 0x00
-01ef	XCHG
-01f0	LXI	H, 0x0000
-01f3	DAD	B
-01f4	INX	D
-01f5	LDAX	D
-01f6	CPI	0x20
-01f8	JZ	0x01f3
-01fb	XCHG
-01fc	SHLD	0xff07
-01ff	CPI	0x0d
-0201	JZ	0x0627
-0204	IN	0x48
-0206	MOV	A, E
-0207	OUT	0x58
-0209	MOV	A, D
-020a	OUT	0x60
-020c	ORD	0x40
-020e	OUT	0x60
-0210	ANI	0xbf
-0212	OUT	0x60
-0214	LHLD	 0xff0f
-0217	DAD	D
-0218	SHLD	0xff0f
-021b	JMP	0x0627
-021e	IN	0x70
-0220	RAR
-0221	JC	0x022a
-0224	ANI	0x10
-0226	JZ	0x022a
-0229	RET
+03f3 21a4f0	lxi	H, 0xf0a4
+03f6 360d  	mvi	M, 0x0d
+03f8 23    	inx	H
+03f9 360a  	mvi	M, 0x0a
+03fb f1    	pop	PSW
+03fc c39903	jmp	0x0399
+03ff db68  	in	0x68
+0401 fea5  	cpi	0xa5
+0403 ca1104	jz	0x0411
+0406 3a09ff	lda	0xff09
+0409 b7    	ora	A
+040a c21104	jnz	0x0411
+040d 3e02  	mvi	A, 0x02
+040f d378  	out	0x78
+0411 db48  	in	0x48
+0413 3e40  	mvi	A, 0x40
+0415 d378  	out	0x78
+0417 c32606	jmp	0x0626
+041a 56    	mov	D, M
+041b 23    	inx	H
+041c 5e    	mov	E, M
+041d 0600  	mvi	B, 0x00
+041f 70    	mov	M, B
+0420 2b    	dcx	H
+0421 70    	mov	M, B
+0422 fb    	ei
+0423 17    	ral
+0424 da6504	jc	0x0465
+0427 2a00ff	lhld	 0xff00
+042a cd4804	calL	0x0448
+042d 72    	mov	M, D
+042e 23    	inx	H
+042f 2200ff	shld	0xff00
+0432 7e    	mov	A, M
+0433 f680  	ord	0x80
+0435 77    	mov	M, A
+0436 2afaff	lhld	 0xfffa
+0439 7d    	mov	A, L
+043a feee  	cpi	0xee
+043c c24204	jnz	0x0442
+043f 21ceff	lxi	H, 0xffce
+0442 23    	inx	H
+0443 23    	inx	H
+0444 22faff	shld	0xfffa
+0447 c9    	ret
 
-022a	POP	PSW
-022b	JMP	0x0357
-022e	MVI	A, 0x3d
-0230	OUT	0x58
-0232	MVI	A, 0x80
-0234	OUT	0x60
-0236	XRA	A
-0237	OUT	0x60
-0239	CALL	0x021e
-023c	IN	0x48
-023e	IN	0x70
-0240	ANI	0x08
-0242	JZ	0x0239
-0245	MVI	A, 0x2f
-0247	JMP	0x0112
-024a	MVI	A, 0x20
-024c	RET
+0448 7a    	mov	A, D
+0449 fe5f  	cpi	0x5f
+044b c25104	jnz	0x0451
+044e 16    	dcr	D
+044f 1d    	dcr	E
+0450 c9    	ret
 
-024d	PUSH	PSW
-024e	PUSH	B
-024f	PUSH	D
-0250	PUSH	H
-0251	MVI	A, 0x00
-0253	OUT	0x60
-0255	CALL	0x028e
-0258	ANI	0x08
-025a	JZ	0x0627
-025d	LHLD	 0xff07
-0260	MOV	A, M
-0261	CPI	0x0a
-0263	JZ	0x02a0
-0266	CPI	0xb8
-0268	CZ	0x024a
-026b	CPI	0xb6
-026d	CZ	0x024a
-0270	CPI	0x0b
-0272	JNZ	0x027D
-0275	JMP	0x027b
-0278	CALL	0x028e
-027b	MVI	A, 0x0c
-027d	CMA
-027e	OUT	0x58
-0280	MVI	A, 0x80
-0282	OUT	0x60
-0284	XRA	A
-0285	OUT	0x60
-0287	INX	H
-0288	SHLD	0xff07
-028b	JMP	0x0627
-028e	IN	0x70
-0290	RAR
-0291	JC	0x0299
-0294	RAR
-0295	JNC	0x0299
-0298	RET
+0451 fe5e  	cpi	0x5e
+0453 c0    	rnz
+0454 16    	dcr	D
+0455 1f    	rar
+0456 c9    	ret
 
-0299	POP	B
-029a	JMP	0x0357
-029d	CALL	0x028e
-02a0	MVI	A, 0xf5
-02a2	OUT	0x58
-02a4	MVI	A, 0x80
-02a6	OUT	0x60
-02a8	XRA	A
-02a9	OUT	0x60
-02ab	XRA	A
-02ac	JMP	0x0199
-02af	MVI	A, 0x05
-02b1	OUT	0x78
-02b3	MVI	B, 0x28
-02b5	MVI	C, 0x0c
-02b7	LDA	0xff02
-02ba	RAR
-02bb	JNC	0x02c2
-02be	MVI	B, 0x50
-02c0	MVI	C, 0x18
-02c2	MOV	A, B
-02c3	STA	0xff22
-02c6	LXI	H, 0xf020
-02c9	LXI	D, 0xc000	; display mem
-02cc	IN	0x48
-02ce	LDAX	D
-02cf	ANI	0x7f
-02d1	CPI	0x00
-02d3	JNZ	0x02DB
-02d6	MVI	A, 0x20
-02d8	JMP	0x0300
-02db	CPI	0x1d
-02dd	JNZ	0x02E5
-02e0	MVI	A, 0x5f
-02e2	JMP	0x0300
-02e5	CPI	0x1e
-02e7	JNZ	0x02EF
-02ea	MVI	A, 0xb8
-02ec	JMP	0x0300
-02ef	CPI	0x1c
-02f1	JNZ	0x02F9
-02f4	MVI	A, 0xb6
-02f6	JMP	0x0300
-02f9	CPI	0x1f
-02fb	JNZ	0x0300
-02fe	MVI	A, 0x5e
-0300	MOV	M, A
-0301	INX	H
-0302	INX	D
-0303	DCR	B
-0304	JNZ	0x02CC
-0307	MVI	M, 0x0d
-0309	INX	H
-030a	MVI	M, 0x0a
-030c	LXI	H, 0xf020
-030f	SHLD	0xff07
-0312	MVI	A, 0x01
-0314	STA	0xff09
-0317	LDA	0xff0E
-031a	RAR
-031b	JC	0x0332
-031e	LDA	0xff09
-0321	RAR
-0322	JNC	0x0345
-0325	IN	0x70
-0327	ANI	0x10
-0329	CNZ	0x024d
-032c	CZ	0x00e1
-032f	JMP	0x0317
-0332	MVI	A, 0x10
-0334	OUT	0x60
-0336	XRA	A
-0337	OUT	0x60
-0339	STA	0xff09
-033c	LXI	H, 0xf020
-033f	SHLD	0xff07
-0342	JMP	0x0169
-0345	LDA	0xff22
-0348	MOV	B, A
-0349	LXI	H, 0xf020
-034c	SHLD	0xff07
-034f	DCR	C
-0350	JNZ	0x02CC
-0353	JMP	0x0627
-0356	RST	7
-0357	LXI	B, 0x07bc
-035a	CALL	0x079d
-035d	MVI	A, 0x01
-035f	OUT	0x50
-0361	STA	0xff0e
-0364	JMP	0x0627
+0457 feb6  	cpi	0xb6
+0459 c25f04	jnz	0x045f
+045c 16    	dcr	D
+045d 1c    	inr	E
+045e c9    	ret
 
-; RST-5 handler
-0367	MVI	A, 0x61
-0369	OUT	0x78
-036b	IN	0x78
-036d	ANI	0x40
-036f	JNZ	0x03FF
-0372	IN	0x68
-0374	MOV	D, A
-0375	CPI	0x0a
-0377	JZ	0x038c
-037a	CPI	0xa5
-037c	JZ	0x03b4
-037f	ANI	0xc0
-0381	CPI	0xc0
-0383	JZ	0x03ca
-0386	CALL	0x03e4
-0389	JMP	0x040d
-038c	LHLD	 0xff07
-038f	DCX	H
-0390	MOV	A, M
-0391	CPI	0x0d
-0393	JNZ	0x03A7
-0396	CALL	0x03e4
-0399	LXI	H, 0xf020
-039c	SHLD	0xff07
-039f	MVI	A, 0x01
-03a1	STA	0xff09
-03a4	JMP	0x0626
-03a7	DCR	D
-03a8	DCR	C
-03a9	CALL	0x03e4
-03ac	DCR	D
-03ad	LDAX	B
-03ae	CALL	0x03e4
-03b1	JMP	0x0399
-03b4	IN	0x78
-03b6	RAR
-03b7	CNC	0x072c
-03ba	JNC	0x03b4
-03bd	CALL	0x0018
-03c0	IN	0x68
-03c2	ANI	0x3f
-03c4	STA	0xff0b
-03c7	JMP	0x0626
-03ca	IN	0x78
-03cc	RAR
-03cd	CNC	0x072c
-03d0	JNC	0x03ca
-03d3	CALL	0x0018
-03d6	IN	0x68
-03d8	ANI	0x7f
-03da	STA	0xff0a
-03dd	XRA	A
-03de	STA	0xff11
-03e1	JMP	0x0626
-03e4	LHLD	 0xff07
-03e7	MOV	M, D
-03e8	INX	H
-03e9	MVI	A, 0xa8
-03eb	CMP	L
-03ec	JZ	0x03f3
-03ef	SHLD	0xff07
-03f2	RET
+045f feb8  	cpi	0xb8
+0461 c0    	rnz
+0462 16    	dcr	D
+0463 1ec9  	mvi	E, 0xc9
+0465 17    	ral
+0466 da9704	jc	0x0497
+0469 7a    	mov	A, D
+046a fea9  	cpi	0xa9
+046c cac704	jz	0x04c7
+046f fea7  	cpi	0xa7
+0471 cace04	jz	0x04ce
+0474 fea2  	cpi	0xa2
+0476 cad504	jz	0x04d5
+0479 fea0  	cpi	0xa0
+047b ca1905	jz	0x0519
+047e fea3  	cpi	0xa3
+0480 ca9905	jz	0x0599
+0483 fea4  	cpi	0xa4
+0485 ca9104	jz	0x0491
+0488 cd5704	calL	0x0457
+048b ca2704	jz	0x0427
+048e c33604	jmp	0x0436
+0491 cd4305	calL	0x0543
+0494 c33604	jmp	0x0436
+0497 7b    	mov	A, E
+0498 17    	ral
+0499 da6205	jc	0x0562
+049c 7a    	mov	A, D
+049d e61f  	ani	0x1f
+049f 57    	mov	D, A
+04a0 cd2407	calL	0x0724
+04a3 210000	lxi	H, 0x0000
+04a6 6a    	mov	L, D
+04a7 d5    	push	D
+04a8 3a02ff	lda	0xff02
+04ab cdaf07	calL	0x07af
+04ae 1f    	rar
+04af dcba07	cc	0x07ba
+04b2 eb    	xchg			; hl <--> de
+04b3 2100c0	lxi	H, 0xc000
+04b6 19    	dad	D
+04b7 d1    	pop	D
+04b8 4b    	mov	C, E
+04b9 eb    	xchg			; hl <--> de
+04ba 2afcff	lhld	 0xfffc
+04bd eb    	xchg			; hl <--> de
+04be 71    	mov	M, C
+04bf 23    	inx	H
+04c0 1d    	dcr	E
+04c1 c2be04	jnz	0x04be
+04c4 c33604	jmp	0x0436
+04c7 3e04  	mvi	A, 0x04
+04c9 d350  	out	0x50
+04cb c33604	jmp	0x0436
+04ce 3e01  	mvi	A, 0x01
+04d0 d350  	out	0x50
+04d2 c33604	jmp	0x0436
+04d5 cd2407	calL	0x0724
+04d8 7b    	mov	A, E
+04d9 e63f  	ani	0x3f
+04db 210000	lxi	H, 0x0000
+04de 6f    	mov	L, A
+04df 3a02ff	lda	0xff02
+04e2 cdaf07	calL	0x07af
+04e5 1f    	rar
+04e6 dcba07	cc	0x07ba
+04e9 0100c0	lxi	B, 0xc000
+04ec 09    	dad	B
+04ed 44    	mov	B, H
+04ee 4d    	mov	C, L
+04ef eb    	xchg			; hl <--> de
+04f0 2afcff	lhld	 0xfffc
+04f3 eb    	xchg			; hl <--> de
+04f4 19    	dad	D
+04f5 0a    	ldax	B
+04f6 77    	mov	M, A
+04f7 23    	inx	H
+04f8 03    	inx	B
+04f9 1d    	dcr	E
+04fa c2f504	jnz	0x04f5
+04fd c33604	jmp	0x0436
+0500 3a03ff	lda	0xff03
+0503 1f    	rar
+0504 d22706	jnc	0x0627
+0507 cd8f07	calL	0x078f
+050a 3e90  	mvi	A, 0x90
+050c d378  	out	0x78
+050e 3eaa  	mvi	A, 0xaa
+0510 d370  	out	0x70
+0512 3eff  	mvi	A, 0xff
+0514 d368  	out	0x68
+0516 c32706	jmp	0x0627
+0519 cd2407	calL	0x0724
+051c 1100c0	lxi	D, 0xc000
+051f 3a02ff	lda	0xff02
+0522 1f    	rar
+0523 da2f05	jc	0x052f
+0526 212800	lxi	H, 0x0028
+0529 0148fe	lxi	B, 0xfe48
+052c c33505	jmp	0x0535
+052f 215000	lxi	H, 0x0050
+0532 01d0f8	lxi	B, 0xf8d0
+0535 19    	dad	D
+0536 7e    	mov	A, M
+0537 12    	stax	D
+0538 23    	inx	H
+0539 13    	inx	D
+053a 03    	inx	B
+053b 78    	mov	A, B
+053c b7    	ora	A
+053d c23605	jnz	0x0536
+0540 c33604	jmp	0x0436
+0543 2100c0	lxi	H, 0xc000
+0546 11fff7	lxi	D, 0xf7ff
+0549 7e    	mov	A, M
+054a a0    	ana	B
+054b 77    	mov	M, A
+054c 23    	inx	H
+054d 13    	inx	D
+054e 7a    	mov	A, D
+054f fe00  	cpi	0x00
+0551 c24905	jnz	0x0549
+0554 78    	mov	A, B
+0555 fe00  	cpi	0x00
+0557 c0    	rnz
+0558 2150c0	lxi	H, 0xc050
+055b 3e80  	mvi	A, 0x80
+055d 77    	mov	M, A
+055e 2200ff	shld	0xff00
+0561 c9    	ret
 
-03f3	LXI	H, 0xf0a4
-03f6	MVI	M, 0x0d
-03f8	INX	H
-03f9	MVI	M, 0x0a
-03fb	POP	PSW
-03fc	JMP	0x0399
-03ff	IN	0x68
-0401	CPI	0xa5
-0403	JZ	0x0411
-0406	LDA	0xff09
-0409	ORA	A
-040a	JNZ	0x0411
-040d	MVI	A, 0x02
-040f	OUT	0x78
-0411	IN	0x48
-0413	MVI	A, 0x40
-0415	OUT	0x78
-0417	JMP	0x0626
-041a	MOV	D, M
-041b	INX	H
-041c	MOV	E, M
-041d	MVI	B, 0x00
-041f	MOV	M, B
-0420	DCX	H
-0421	MOV	M, B
-0422	EI			; enable interrupts
-0423	RAL
-0424	JC	0x0465
-0427	LHLD	 0xff00
-042a	CALL	0x0448
-042d	MOV	M, D
-042e	INX	H
-042f	SHLD	0xff00
-0432	MOV	A, M
-0433	ORD	0x80
-0435	MOV	M, A
-0436	LHLD	 0xfffa
-0439	MOV	A, L
-043a	CPI	0xee
-043c	JNZ	0x0442
-043f	LXI	H, 0xffce
-0442	INX	H
-0443	INX	H
-0444	SHLD	0xfffa
-0447	RET
+0562 3e02  	mvi	A, 0x02
+0564 d350  	out	0x50
+0566 af    	xra	A
+0567 3206ff	sta	0xff06
+056a 320eff	sta	0xff0e
+056d cd2407	calL	0x0724
+0570 210000	lxi	H, 0x0000
+0573 7a    	mov	A, D
+0574 e63f  	ani	0x3f
+0576 6f    	mov	L, A
+0577 d5    	push	D
+0578 3a02ff	lda	0xff02
+057b cdaf07	calL	0x07af
+057e 1f    	rar
+057f dcba07	cc	0x07ba
+0582 eb    	xchg			; hl <--> de
+0583 21ffbf	lxi	H, 0xbfff
+0586 19    	dad	D
+0587 d1    	pop	D
+0588 16    	dcr	D
+0589 00    	nop
+058a 7b    	mov	A, E
+058b e67f  	ani	0x7f
+058d 5f    	mov	E, A
+058e 19    	dad	D
+058f 2200ff	shld	0xff00
+0592 7e    	mov	A, M
+0593 f680  	ord	0x80
+0595 77    	mov	M, A
+0596 c33604	jmp	0x0436
+0599 2a04ff	lhld	 0xff04
+059c 56    	mov	D, M
+059d 23    	inx	H
+059e 2204ff	shld	0xff04
+05a1 7d    	mov	A, L
+05a2 fe20  	cpi	0x20
+05a4 7b    	mov	A, E
+05a5 c2ae05	jnz	0x05ae
+05a8 2114ff	lxi	H, 0xff14
+05ab 2204ff	shld	0xff04
+05ae ba    	cmp	D
+05af c4b505	cnz	0x05b5
+05b2 c33604	jmp	0x0436
+05b5 3e01  	mvi	A, 0x01
+05b7 d350  	out	0x50
+05b9 f3    	di
+05ba 3206ff	sta	0xff06
+05bd 01ce07	lxi	B, 0x07ce
+05c0 cd9d07	calL	0x079d
+05c3 c9    	ret
 
-0448	MOV	A, D
-0449	CPI	0x5f
-044b	JNZ	0x0451
-044e	DCR	D
-044f	DCR	E
-0450	RET
+05c4 3e64  	mvi	A, 0x64
+05c6 d378  	out	0x78
+05c8 f1    	pop	PSW
+05c9 c5    	pusH	B
+05ca d5    	push	D
+05cb e5    	push	H
+05cc 17    	ral
+05cd da2d06	jc	0x062d
+05d0 3e04  	mvi	A, 0x04
+05d2 d378  	out	0x78
+05d4 110000	lxi	D, 0x0000
+05d7 db68  	in	0x68
+05d9 57    	mov	D, A
+05da fea3  	cpi	0xa3
+05dc caec05	jz	0x05ec
+05df fea2  	cpi	0xa2
+05e1 caec05	jz	0x05ec
+05e4 17    	ral
+05e5 d2ff05	jnc	0x05ff
+05e8 17    	ral
+05e9 d2ff05	jnc	0x05ff
+05ec db78  	in	0x78
+05ee 1f    	rar
+05ef d42c07	cnc	0x072c
+05f2 d2ec05	jnc	0x05ec
+05f5 cd1800	calL	0x0018
+05f8 3e40  	mvi	A, 0x40
+05fa d378  	out	0x78
+05fc db68  	in	0x68
+05fe 5f    	mov	E, A
+05ff 00    	nop
+0600 2af8ff	lhld	 0xfff8
+0603 7e    	mov	A, M
+0604 b7    	ora	A
+0605 c20000	jnz	0x0000
+0608 72    	mov	M, D
+0609 7a    	mov	A, D
+060a b7    	ora	A
+060b ca0000	jz	0x0000
+060e 23    	inx	H
+060f 73    	mov	M, E
+0610 23    	inx	H
+0611 7d    	mov	A, L
+0612 fef0  	cpi	0xf0
+0614 c21a06	jnz	0x061a
+0617 21d0ff	lxi	H, 0xffd0
+061a 22f8ff	shld	0xfff8
+061d 7e    	mov	A, M
+061e b7    	ora	A
+061f c22606	jnz	0x0626
+0622 3e08  	mvi	A, 0x08
+0624 d378  	out	0x78
+0626 fb    	ei
+0627 e1    	pop	H
+0628 d1    	pop	D
+0629 c1    	pop	B
+062a f1    	pop	PSW
+062b fb    	ei
+062c c9    	ret
 
-0451	CPI	0x5e
-0453	RNZ
-0454	DCR	D
-0455	RAR
-0456	RET
+062d db68  	in	0x68
+062f e6c0  	ani	0xc0
+0631 fec0  	cpi	0xc0
+0633 ca3c06	jz	0x063c
+0636 fb    	ei
+0637 db48  	in	0x48
+0639 c34806	jmp	0x0648
+063c db78  	in	0x78
+063e 1f    	rar
+063f d42c07	cnc	0x072c
+0642 d23c06	jnc	0x063c
+0645 cd1800	calL	0x0018
+0648 3e40  	mvi	A, 0x40
+064a d378  	out	0x78
+064c 2af8ff	lhld	 0xfff8
+064f c31d06	jmp	0x061d
+0652 db50  	in	0x50
+0654 57    	mov	D, A
+0655 3e9b  	mvi	A, 0x9b
+0657 ba    	cmp	D
+0658 ca4407	jz	0x0744
+065b 3a06ff	lda	0xff06
+065e 1f    	rar
+065f da2706	jc	0x0627
+0662 db48  	in	0x48
+0664 e607  	ani	0x07
+0666 c28706	jnz	0x0687
+0669 1eff  	mvi	E, 0xff
+066b 0e90  	mvi	C, 0x90
+066d cd8f07	calL	0x078f
+0670 79    	mov	A, C
+0671 d378  	out	0x78
+0673 cd8f07	calL	0x078f
+0676 7a    	mov	A, D
+0677 d370  	out	0x70
+0679 3a03ff	lda	0xff03
+067c 1f    	rar
+067d daf306	jc	0x06f3
+0680 7b    	mov	A, E
+0681 d368  	out	0x68
+0683 fb    	ei
+0684 c32706	jmp	0x0627
+0687 5a    	mov	E, D
+0688 fe02  	cpi	0x02
+068a c2d306	jnz	0x06d3
+068d 16    	dcr	D
+068e 84    	add	H
+068f 3edf  	mvi	A, 0xdf
+0691 a3    	ana	E
+0692 fe54  	cpi	0x54
+0694 cab706	jz	0x06b7
+0697 fe58  	cpi	0x58
+0699 c29d06	jnz	0x069d
+069c ff    	rst	7
+069d fe53  	cpi	0x53
+069f cac706	jz	0x06c7
+06a2 fe50  	cpi	0x50
+06a4 caaf02	jz	0x02af
+06a7 fe44  	cpi	0x44
+06a9 c2ee06	jnz	0x06ee
+06ac 3a0008	lda	0x0800
+06af feff  	cpi	0xff
+06b1 c20008	jnz	0x0800
+06b4 c3ee06	jmp	0x06ee
+06b7 211ff0	lxi	H, 0xf01f
+06ba 2207ff	shld	0xff07
+06bd db70  	in	0x70
+06bf e610  	ani	0x10
+06c1 caa501	jz	0x01a5
+06c4 c37802	jmp	0x0278
+06c7 db70  	in	0x70
+06c9 e610  	ani	0x10
+06cb ca7201	jz	0x0172
+06ce 3e0a  	mvi	A, 0x0a
+06d0 c39d02	jmp	0x029d
+06d3 fe03  	cpi	0x03
+06d5 c2dd06	jnz	0x06dd
+06d8 16    	dcr	D
+06d9 86    	add	M
+06da c3ee06	jmp	0x06ee
+06dd fe06  	cpi	0x06
+06df c2e706	jnz	0x06e7
+06e2 16    	dcr	D
+06e3 85    	add	L
+06e4 c3ee06	jmp	0x06ee
+06e7 fe05  	cpi	0x05
+06e9 c26906	jnz	0x0669
+06ec 16    	dcr	D
+06ed 82    	add	D
+06ee 0e10  	mvi	C, 0x10
+06f0 c36d06	jmp	0x066d
+06f3 fb    	ei
+06f4 db48  	in	0x48
+06f6 db78  	in	0x78
+06f8 e606  	ani	0x06
+06fa ca0a07	jz	0x070a
+06fd 2afaff	lhld	 0xfffa
+0700 7e    	mov	A, M
+0701 b7    	ora	A
+0702 d5    	push	D
+0703 c41a04	cnz	0x041a
+0706 d1    	pop	D
+0707 c3f306	jmp	0x06f3
+070a 7b    	mov	A, E
+070b d368  	out	0x68
+070d 2a0cff	lhld	 0xff0c
+0710 72    	mov	M, D
+0711 23    	inx	H
+0712 7d    	mov	A, L
+0713 fe20  	cpi	0x20
+0715 cc7d07	cz	0x077d
+0718 7b    	mov	A, E
+0719 feff  	cpi	0xff
+071b c28107	jnz	0x0781
+071e 220cff	shld	0xff0c
+0721 c32706	jmp	0x0627
+0724 2a00ff	lhld	 0xff00
+0727 7e    	mov	A, M
+0728 e67f  	ani	0x7f
+072a 77    	mov	M, A
+072b c9    	ret
 
-0457	CPI	0xb6
-0459	JNZ	0x045F
-045c	DCR	D
-045d	INR	E
-045e	RET
+072c f5    	push	PSW
+072d e5    	push	H
+072e db48  	in	0x48
+0730 2a12ff	lhld	 0xff12
+0733 2c    	inr	L
+0734 c23e07	jnz	0x073e
+0737 24    	inr	H
+0738 c23e07	jnz	0x073e
+073b c30000	jmp	0x0000
+073e 2212ff	shld	0xff12
+0741 e1    	pop	H
+0742 f1    	pop	PSW
+0743 c9    	ret
 
-045f	CPI	0xb8
-0461	RNZ
-0462	DCR	D
-0463	MVI	E, 0xc9
-0465	RAL
-0466	JC	0x0497
-0469	MOV	A, D
-046a	CPI	0xa9
-046c	JZ	0x04c7
-046f	CPI	0xa7
-0471	JZ	0x04ce
-0474	CPI	0xa2
-0476	JZ	0x04d5
-0479	CPI	0xa0
-047b	JZ	0x0519
-047e	CPI	0xa3
-0480	JZ	0x0599
-0483	CPI	0xa4
-0485	JZ	0x0491
-0488	CALL	0x0457
-048b	JZ	0x0427
-048e	JMP	0x0436
-0491	CALL	0x0543
-0494	JMP	0x0436
-0497	MOV	A, E
-0498	RAL
-0499	JC	0x0562
-049c	MOV	A, D
-049d	ANI	0x1f
-049f	MOV	D, A
-04a0	CALL	0x0724
-04a3	LXI	H, 0x0000
-04a6	MOV	L, D
-04a7	PUSH	D
-04a8	LDA	0xff02
-04ab	CALL	0x07af
-04ae	RAR
-04af	CC	0x07ba
-04b2	XCHG
-04b3	LXI	H, 0xc000	; display mem
-04b6	DAD	D
-04b7	POP	D
-04b8	MOV	C, E
-04b9	XCHG
-04ba	LHLD	 0xfffc
-04bd	XCHG
-04be	MOV	M, C
-04bf	INX	H
-04c0	DCR	E
-04c1	JNZ	0x04BE
-04c4	JMP	0x0436
-04c7	MVI	A, 0x04
-04c9	OUT	0x50
-04cb	JMP	0x0436
-04ce	MVI	A, 0x01
-04d0	OUT	0x50
-04d2	JMP	0x0436
-04d5	CALL	0x0724
-04d8	MOV	A, E
-04d9	ANI	0x3f
-04db	LXI	H, 0x0000
-04de	MOV	L, A
-04df	LDA	0xff02
-04e2	CALL	0x07af
-04e5	RAR
-04e6	CC	0x07ba
-04e9	LXI	B, 0xc000	; display mem
-04ec	DAD	B
-04ed	MOV	B, H
-04ee	MOV	C, L
-04ef	XCHG
-04f0	LHLD	 0xfffc
-04f3	XCHG
-04f4	DAD	D
-04f5	LDAX	B
-04f6	MOV	M, A
-04f7	INX	H
-04f8	INX	B
-04f9	DCR	E
-04fa	JNZ	0x04F5
-04fd	JMP	0x0436
-0500	LDA	0xff03
-0503	RAR
-0504	JNC	0x0627
-0507	CALL	0x078f
-050a	MVI	A, 0x90
-050c	OUT	0x78
-050e	MVI	A, 0xaa
-0510	OUT	0x70
-0512	MVI	A, 0xff
-0514	OUT	0x68
-0516	JMP	0x0627
-0519	CALL	0x0724
-051c	LXI	D, 0xc000	; display mem
-051f	LDA	0xff02
-0522	RAR
-0523	JC	0x052f
-0526	LXI	H, 0x0028
-0529	LXI	B, 0xfe48
-052c	JMP	0x0535
-052f	LXI	H, 0x0050
-0532	LXI	B, 0xf8d0
-0535	DAD	D
-0536	MOV	A, M
-0537	STAX	D
-0538	INX	H
-0539	INX	D
-053a	INX	B
-053b	MOV	A, B
-053c	ORA	A
-053d	JNZ	0x0536
-0540	JMP	0x0436
-0543	LXI	H, 0xc000	; display mem
-0546	LXI	D, 0xf7ff
-0549	MOV	A, M
-054a	ANA	B
-054b	MOV	M, A
-054c	INX	H
-054d	INX	D
-054e	MOV	A, D
-054f	CPI	0x00
-0551	JNZ	0x0549
-0554	MOV	A, B
-0555	CPI	0x00
-0557	RNZ
-0558	LXI	H, 0xc050
-055b	MVI	A, 0x80
-055d	MOV	M, A
-055e	SHLD	0xff00
-0561	RET
+0744 3a06ff	lda	0xff06
+0747 1f    	rar
+0748 d25807	jnc	0x0758
+074b fb    	ei
+074c 2114ff	lxi	H, 0xff14
+074f 220cff	shld	0xff0c
+0752 2204ff	shld	0xff04
+0755 c35f07	jmp	0x075f
+0758 3a0eff	lda	0xff0e
+075b 1f    	rar
+075c d26206	jnc	0x0662
+075f 3e02  	mvi	A, 0x02
+0761 d350  	out	0x50
+0763 d5    	push	D
+0764 1100c0	lxi	D, 0xc000
+0767 2afcff	lhld	 0xfffc
+076a 4d    	mov	C, L
+076b 19    	dad	D
+076c af    	xra	A
+076d 77    	mov	M, A
+076e 23    	inx	H
+076f 0d    	dcr	C
+0770 c26d07	jnz	0x076d
+0773 d1    	pop	D
+0774 3206ff	sta	0xff06
+0777 320eff	sta	0xff0e
+077a c36206	jmp	0x0662
+077d 2114ff	lxi	H, 0xff14
+0780 c9    	ret
 
-0562	MVI	A, 0x02
-0564	OUT	0x50
-0566	XRA	A
-0567	STA	0xff06
-056a	STA	0xff0e
-056d	CALL	0x0724
-0570	LXI	H, 0x0000
-0573	MOV	A, D
-0574	ANI	0x3f
-0576	MOV	L, A
-0577	PUSH	D
-0578	LDA	0xff02
-057b	CALL	0x07af
-057e	RAR
-057f	CC	0x07ba
-0582	XCHG
-0583	LXI	H, 0xbfff
-0586	DAD	D
-0587	POP	D
-0588	DCR	D
-0589	NOP
-058a	MOV	A, E
-058b	ANI	0x7f
-058d	MOV	E, A
-058e	DAD	D
-058f	SHLD	0xff00
-0592	MOV	A, M
-0593	ORD	0x80
-0595	MOV	M, A
-0596	JMP	0x0436
-0599	LHLD	 0xff04
-059c	MOV	D, M
-059d	INX	H
-059e	SHLD	0xff04
-05a1	MOV	A, L
-05a2	CPI	0x20
-05a4	MOV	A, E
-05a5	JNZ	0x05AE
-05a8	LXI	H, 0xff14
-05ab	SHLD	0xff04
-05ae	CMP	D
-05af	CNZ	0x05b5
-05b2	JMP	0x0436
-05b5	MVI	A, 0x01
-05b7	OUT	0x50
-05b9	DI			; disable interrupts
-05ba	STA	0xff06
-05bd	LXI	B, 0x07ce
-05c0	CALL	0x079d
-05c3	RET
+0781 73    	mov	M, E
+0782 23    	inx	H
+0783 7d    	mov	A, L
+0784 fe20  	cpi	0x20
+0786 cc7d07	cz	0x077d
+0789 220cff	shld	0xff0c
+078c c32706	jmp	0x0627
+078f db78  	in	0x78
+0791 e606  	ani	0x06
+0793 c42c07	cnz	0x072c
+0796 c28f07	jnz	0x078f
+0799 cd1800	calL	0x0018
+079c c9    	ret
 
-; RST-6 handler
-05c4	MVI	A, 0x64
-05c6	OUT	0x78
-05c8	POP	PSW
-05c9	PUSH	B
-05ca	PUSH	D
-05cb	PUSH	H
-05cc	RAL
-05cd	JC	0x062d
-05d0	MVI	A, 0x04
-05d2	OUT	0x78
-05d4	LXI	D, 0x0000
-05d7	IN	0x68
-05d9	MOV	D, A
-05da	CPI	0xa3
-05dc	JZ	0x05ec
-05df	CPI	0xa2
-05e1	JZ	0x05ec
-05e4	RAL
-05e5	JNC	0x05ff
-05e8	RAL
-05e9	JNC	0x05ff
-05ec	IN	0x78
-05ee	RAR
-05ef	CNC	0x072c
-05f2	JNC	0x05ec
-05f5	CALL	0x0018
-05f8	MVI	A, 0x40
-05fa	OUT	0x78
-05fc	IN	0x68
-05fe	MOV	E, A
-05ff	NOP
-0600	LHLD	 0xfff8
-0603	MOV	A, M
-0604	ORA	A
-0605	JNZ	0x0000
-0608	MOV	M, D
-0609	MOV	A, D
-060a	ORA	A
-060b	JZ	0x0000
-060e	INX	H
-060f	MOV	M, E
-0610	INX	H
-0611	MOV	A, L
-0612	CPI	0xf0
-0614	JNZ	0x061A
-0617	LXI	H, 0xffd0
-061a	SHLD	0xfff8
-061d	MOV	A, M
-061e	ORA	A
-061f	JNZ	0x0626
-0622	MVI	A, 0x08
-0624	OUT	0x78
-0626	EI			; enable interrupts
+079d c5    	pusH	B
+079e 0100c0	lxi	B, 0xc000
+07a1 2afcff	lhld	 0xfffc
+07a4 09    	dad	B
+07a5 c1    	pop	B
+07a6 0a    	ldax	B
+07a7 77    	mov	M, A
+07a8 23    	inx	H
+07a9 03    	inx	B
+07aa b7    	ora	A
+07ab c2a607	jnz	0x07a6
+07ae c9    	ret
 
-0627	POP	H
-0628	POP	D
-0629	POP	B
-062a	POP	PSW
-062b	EI			; enable interrupts
-062c	RET
+07af d5    	push	D
+07b0 29    	dad	H
+07b1 29    	dad	H
+07b2 29    	dad	H
+07b3 54    	mov	D, H
+07b4 5d    	mov	E, L
+07b5 29    	dad	H
+07b6 29    	dad	H
+07b7 19    	dad	D
+07b8 d1    	pop	D
+07b9 c9    	ret
 
-062d	IN	0x68
-062f	ANI	0xc0
-0631	CPI	0xc0
-0633	JZ	0x063c
-0636	EI			; enable interrupts
-0637	IN	0x48
-0639	JMP	0x0648
-063c	IN	0x78
-063e	RAR
-063f	CNC	0x072c
-0642	JNC	0x063c
-0645	CALL	0x0018
-0648	MVI	A, 0x40
-064a	OUT	0x78
-064c	LHLD	 0xfff8
-064f	JMP	0x061d
+07ba 29    	dad	H
+07bb c9    	ret
 
-; RST-4 handler
-; Keyboard input handler
-
-0652	IN	0x50
-0654	MOV	D, A
-0655	MVI	A, 0x9b
-0657	CMP	D
-0658	JZ	0x0744
-065b	LDA	0xff06
-065e	RAR
-065f	JC	0x0627
-0662	IN	0x48
-0664	ANI	0x07
-0666	JNZ	0x0687
-0669	MVI	E, 0xff
-066b	MVI	C, 0x90
-066d	CALL	0x078f
-0670	MOV	A, C
-0671	OUT	0x78
-0673	CALL	0x078f
-0676	MOV	A, D
-0677	OUT	0x70
-0679	LDA	0xff03
-067c	RAR
-067d	JC	0x06f3
-0680	MOV	A, E
-0681	OUT	0x68
-0683	EI			; enable interrupts
-0684	JMP	0x0627
-
-0687	MOV	E, D
-0688	CPI	0x02
-068a	JNZ	0x06D3
-068d	DCR	D
-068e	ADD	H
-068f	MVI	A, 0xdf
-0691	ANA	E
-0692	CPI	0x54
-0694	JZ	0x06b7
-0697	CPI	0x58
-0699	JNZ	0x069D
-069c	RST	7
-069d	CPI	0x53
-069f	JZ	0x06c7
-06a2	CPI	0x50
-06a4	JZ	0x02af
-06a7	CPI	0x44
-06a9	JNZ	0x06EE
-06ac	LDA	0x0800
-06af	CPI	0xff
-06b1	JNZ	0x0800
-06b4	JMP	0x06ee
-06b7	LXI	H, 0xf01f
-06ba	SHLD	0xff07
-06bd	IN	0x70
-06bf	ANI	0x10
-06c1	JZ	0x01a5
-06c4	JMP	0x0278
-06c7	IN	0x70
-06c9	ANI	0x10
-06cb	JZ	0x0172
-06ce	MVI	A, 0x0a
-06d0	JMP	0x029d
-06d3	CPI	0x03
-06d5	JNZ	0x06DD
-06d8	DCR	D
-06d9	ADD	M
-06da	JMP	0x06ee
-06dd	CPI	0x06
-06df	JNZ	0x06E7
-06e2	DCR	D
-06e3	ADD	L
-06e4	JMP	0x06ee
-06e7	CPI	0x05
-06e9	JNZ	0x0669
-06ec	DCR	D
-06ed	ADD	D
-06ee	MVI	C, 0x10
-06f0	JMP	0x066d
-06f3	EI			; enable interrupts
-06f4	IN	0x48
-06f6	IN	0x78
-06f8	ANI	0x06
-06fa	JZ	0x070a
-06fd	LHLD	 0xfffa
-0700	MOV	A, M
-0701	ORA	A
-0702	PUSH	D
-0703	CNZ	0x041a
-0706	POP	D
-0707	JMP	0x06f3
-070a	MOV	A, E
-070b	OUT	0x68
-070d	LHLD	 0xff0c
-0710	MOV	M, D
-0711	INX	H
-0712	MOV	A, L
-0713	CPI	0x20
-0715	CZ	0x077d
-0718	MOV	A, E
-0719	CPI	0xff
-071b	JNZ	0x0781
-071e	SHLD	0xff0c
-0721	JMP	0x0627
-0724	LHLD	 0xff00
-0727	MOV	A, M
-0728	ANI	0x7f
-072a	MOV	M, A
-072b	RET
-
-072c	PUSH	PSW
-072d	PUSH	H
-072e	IN	0x48
-0730	LHLD	 0xff12
-0733	INR	L
-0734	JNZ	0x073E
-0737	INR	H
-0738	JNZ	0x073E
-073b	JMP	0x0000
-073e	SHLD	0xff12
-0741	POP	H
-0742	POP	PSW
-0743	RET
-
-0744	LDA	0xff06
-0747	RAR
-0748	JNC	0x0758
-074b	EI			; enable interrupts
-074c	LXI	H, 0xff14
-074f	SHLD	0xff0c
-0752	SHLD	0xff04
-0755	JMP	0x075f
-0758	LDA	0xff0E
-075b	RAR
-075c	JNC	0x0662
-075f	MVI	A, 0x02
-0761	OUT	0x50
-0763	PUSH	D
-0764	LXI	D, 0xc000	; display mem
-0767	LHLD	 0xfffc
-076a	MOV	C, L
-076b	DAD	D
-076c	XRA	A
-076d	MOV	M, A
-076e	INX	H
-076f	DCR	C
-0770	JNZ	0x076D
-0773	POP	D
-0774	STA	0xff06
-0777	STA	0xff0e
-077a	JMP	0x0662
-077d	LXI	H, 0xff14
-0780	RET
-
-0781	MOV	M, E
-0782	INX	H
-0783	MOV	A, L
-0784	CPI	0x20
-0786	CZ	0x077d
-0789	SHLD	0xff0c
-078c	JMP	0x0627
-
-; subroutine
-078f	IN	0x78
-0791	ANI	0x06
-0793	CNZ	0x072c
-0796	JNZ	0x078F
-0799	CALL	0x0018
-079c	RET
-
-079d	PUSH	B
-079e	LXI	B, 0xc000	; display mem
-07a1	LHLD	 0xfffc
-07a4	DAD	B
-07a5	POP	B
-07a6	LDAX	B
-07a7	MOV	M, A
-07a8	INX	H
-07a9	INX	B
-07aa	ORA	A
-07ab	JNZ	0x07A6
-07ae	RET
-
-; subroutine
-07af	PUSH	D
-07b0	DAD	H
-07b1	DAD	H
-07b2	DAD	H
-07b3	MOV	D, H
-07b4	MOV	E, L
-07b5	DAD	H
-07b6	DAD	H
-07b7	DAD	D
-07b8	POP	D
-07b9	RET
-
-07ba	DAD	H
-07bb	RET
-
-07bc	MOV	D, B
-07bd	MOV	D, D
-07be	MOV	C, C
-07bf	MOV	C, M
-07c0	MOV	D, H
-07c1	MOV	B, L
-07c2	MOV	D, D
-07c3	RIM
-07c4	MOV	C, M
-07c5	MOV	C, A
-07c6	MOV	D, H
-07c7	RIM
-07c8	MOV	D, D
-07c9	MOV	B, L
-07ca	MOV	B, C
-07cb	MOV	B, H
-07cc	MOV	E, C
-07cd	NOP
-07ce	MOV	E, B
-07cf	MOV	C, L
-07d0	MOV	C, C
-07d1	MOV	D, E
-07d2	MOV	D, E
-07d3	MOV	C, C
-07d4	MOV	C, A
-07d5	MOV	C, M
-07d6	RIM
-07d7	MOV	B, L
-07d8	MOV	D, D
-07d9	MOV	D, D
-07da	MOV	C, A
-07db	MOV	D, D
-07dc	RIM
-
-07dd	NOP
-07de	NOP
-07df	NOP
-07e0	NOP
-07e1	NOP
-07e2	NOP
-07e3	NOP
-07e4	NOP
-07e5	NOP
-07e6	NOP
-07e7	NOP
-07e8	NOP
-07e9	NOP
-07ea	NOP
-07eb	NOP
-07ec	NOP
-07ed	NOP
-07ee	NOP
-07ef	NOP
-07f0	NOP
-07f1	NOP
-07f2	NOP
-07f3	NOP
-07f4	NOP
-07f5	NOP
-07f6	NOP
-07f7	NOP
-07f8	NOP
-07f9	NOP
-07fa	NOP
-07fb	NOP
-07fc	NOP
-07fd	NOP
-07fe	NOP
-07ff	NOP
+07bc 50    	mov	D, B
+07bd 52    	mov	D, D
+07be 49    	mov	C, C
+07bf 4e    	mov	C, M
+07c0 54    	mov	D, H
+07c1 45    	mov	B, L
+07c2 52    	mov	D, D
+07c3 20    	rim
+07c4 4e    	mov	C, M
+07c5 4f    	mov	C, A
+07c6 54    	mov	D, H
+07c7 20    	rim
+07c8 52    	mov	D, D
+07c9 45    	mov	B, L
+07ca 41    	mov	B, C
+07cb 44    	mov	B, H
+07cc 59    	mov	E, C
+07cd 00    	nop
+07ce 58    	mov	E, B
+07cf 4d    	mov	C, L
+07d0 49    	mov	C, C
+07d1 53    	mov	D, E
+07d2 53    	mov	D, E
+07d3 49    	mov	C, C
+07d4 4f    	mov	C, A
+07d5 4e    	mov	C, M
+07d6 20    	rim
+07d7 45    	mov	B, L
+07d8 52    	mov	D, D
+07d9 52    	mov	D, D
+07da 4f    	mov	C, A
+07db 52    	mov	D, D
+07dc 20    	rim
+07dd 00    	nop
+07de 00    	nop
+07df 00    	nop
+07e0 00    	nop
+07e1 00    	nop
+07e2 00    	nop
+07e3 00    	nop
+07e4 00    	nop
+07e5 00    	nop
+07e6 00    	nop
+07e7 00    	nop
+07e8 00    	nop
+07e9 00    	nop
+07ea 00    	nop
+07eb 00    	nop
+07ec 00    	nop
+07ed 00    	nop
+07ee 00    	nop
+07ef 00    	nop
+07f0 00    	nop
+07f1 00    	nop
+07f2 00    	nop
+07f3 00    	nop
+07f4 00    	nop
+07f5 00    	nop
+07f6 00    	nop
+07f7 00    	nop
+07f8 00    	nop
+07f9 00    	nop
+07fa 00    	nop
+07fb 00    	nop
+07fc 00    	nop
+07fd 00    	nop
+07fe 00    	nop
+07ff 00    	nop
