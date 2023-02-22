@@ -193,7 +193,7 @@
 00a3 215000	lxi	H, 0x0050
 00a6 22fcff	shld	0xfffc
 00a9 fb    	ei
-00aa 2afaff	lhld	 0xfffa
+00aa 2afaff	lhld	0xfffa
 00ad 7e    	mov	A, M
 00ae b7    	ora	A
 00af c41a04	cnz	0x041a		; call if NZ
@@ -223,7 +223,7 @@
 00e2 c5    	push	B
 00e3 d5    	push	D
 00e4 e5    	push	H
-00e5 2a07ff	lhld	 0xff07
+00e5 2a07ff	lhld	0xff07
 00e8 7e    	mov	A, M
 00e9 fe0d  	cpi	0x0d
 00eb ca4501	jz	0x0145
@@ -258,7 +258,7 @@
 012e 5f    	mov	E, A
 012f 16    	dcr	D
 0130 00    	nop
-0131 2a0fff	lhld	 0xff0f
+0131 2a0fff	lhld	0xff0f
 0134 19    	dad	D		; hl += de
 0135 220fff	shld	0xff0f
 0138 7b    	mov	A, E
@@ -272,10 +272,10 @@
 0148 db70  	in	0x70
 014a e604  	ani	0x04
 014c ca2706	jz	0x0627
-014f 2a07ff	lhld	 0xff07
+014f 2a07ff	lhld	0xff07
 0152 23    	inx	H
 0153 2207ff	shld	0xff07
-0156 2a0fff	lhld	 0xff0f
+0156 2a0fff	lhld	0xff0f
 0159 7d    	mov	A, L
 015a d358  	out	0x58
 015c 7c    	mov	A, H
@@ -334,7 +334,7 @@
 01c9 d360  	out	0x60
 01cb e6df  	ani	0xdf
 01cd d360  	out	0x60
-01cf 2a07ff	lhld	 0xff07
+01cf 2a07ff	lhld	0xff07
 01d2 23    	inx	H
 01d3 2207ff	shld	0xff07
 01d6 af    	xra	A
@@ -368,7 +368,7 @@
 020e d360  	out	0x60
 0210 e6bf  	ani	0xbf
 0212 d360  	out	0x60
-0214 2a0fff	lhld	 0xff0f
+0214 2a0fff	lhld	0xff0f
 0217 19    	dad	D		; hl += de
 0218 220fff	shld	0xff0f
 021b c32706	jmp	0x0627
@@ -407,7 +407,7 @@
 0255 cd8e02	call	0x028e
 0258 e608  	ani	0x08
 025a ca2706	jz	0x0627
-025d 2a07ff	lhld	 0xff07
+025d 2a07ff	lhld	0xff07
 0260 7e    	mov	A, M
 0261 fe0a  	cpi	0x0a
 0263 caa002	jz	0x02a0
@@ -453,21 +453,22 @@
 ; jump here from far below
 02af 3e05  	mvi	A, 0x05
 02b1 d378  	out	0x78
-02b3 0628  	mvi	B, 0x28
-02b5 0e0c  	mvi	C, 0x0c
+02b3 0628  	mvi	B, 0x28		; B = 40 (line length)
+02b5 0e0c  	mvi	C, 0x0c		; C = 12 (number of lines)
 02b7 3a02ff	lda	0xff02
 02ba 1f    	rar			; rotate right thru carry
 02bb d2c202	jnc	0x02c2
-02be 0650  	mvi	B, 0x50
-02c0 0e18  	mvi	C, 0x18
+02be 0650  	mvi	B, 0x50		; B = 80 (line length)
+02c0 0e18  	mvi	C, 0x18		; C = 24 (number of lines)
+
 02c2 78    	mov	A, B
 02c3 3222ff	sta	0xff22
 02c6 2120f0	lxi	H, 0xf020
 02c9 1100c0	lxi	D, 0xc000	; display ram
 
-; loop
-02cc db48  	in	0x48
-02ce 1a    	ldax	D
+; loop for entire screen
+02cc db48  	in	0x48		; A <- port-48
+02ce 1a    	ldax	D		; A <- (DE)
 02cf e67f  	ani	0x7f
 02d1 fe00  	cpi	0x00
 02d3 c2db02	jnz	0x02db
@@ -488,11 +489,12 @@
 02f9 fe1f  	cpi	0x1f
 02fb c20003	jnz	0x0300
 02fe 3e5e  	mvi	A, 0x5e
-0300 77    	mov	M, A
-0301 23    	inx	H
-0302 13    	inx	D
-0303 05    	dcr	B
-0304 c2cc02	jnz	0x02cc
+
+0300 77    	mov	M, A		; (HL) <- A
+0301 23    	inx	H		; HL++
+0302 13    	inx	D		; DE++
+0303 05    	dcr	B		; B--
+0304 c2cc02	jnz	0x02cc		; END of line loop
 
 0307 360d  	mvi	M, 0x0d
 0309 23    	inx	H
@@ -529,15 +531,18 @@
 0349 2120f0	lxi	H, 0xf020
 034c 2207ff	shld	0xff07
 034f 0d    	dcr	C
-0350 c2cc02	jnz	0x02cc
+0350 c2cc02	jnz	0x02cc		; END of screen loop
+
 0353 c32706	jmp	0x0627
 
 ; no path here
 0356 ff    	rst	7
 
 ; several jumps (2) to here.
+
+; print message "PRINTER NOT READY"
 0357 01bc07	lxi	B, 0x07bc	; message (text)
-035a cd9d07	call	0x079d
+035a cd9d07	call	0x079d		; display the message
 035d 3e01  	mvi	A, 0x01
 035f d350  	out	0x50
 0361 320eff	sta	0xff0e
@@ -560,7 +565,7 @@
 0383 caca03	jz	0x03ca
 0386 cde403	call	0x03e4
 0389 c30d04	jmp	0x040d
-038c 2a07ff	lhld	 0xff07
+038c 2a07ff	lhld	0xff07
 038f 2b    	dcx	H
 0390 7e    	mov	A, M
 0391 fe0d  	cpi	0x0d
@@ -598,7 +603,7 @@
 03dd af    	xra	A
 03de 3211ff	sta	0xff11
 03e1 c32606	jmp	0x0626
-03e4 2a07ff	lhld	 0xff07
+03e4 2a07ff	lhld	0xff07
 03e7 72    	mov	M, D
 03e8 23    	inx	H
 03e9 3ea8  	mvi	A, 0xa8
@@ -635,7 +640,7 @@
 0422 fb    	ei
 0423 17    	ral			; rotate left thru carry
 0424 da6504	jc	0x0465
-0427 2a00ff	lhld	 0xff00
+0427 2a00ff	lhld	0xff00
 042a cd4804	call	0x0448
 042d 72    	mov	M, D
 042e 23    	inx	H
@@ -643,7 +648,7 @@
 0432 7e    	mov	A, M
 0433 f680  	ord	0x80
 0435 77    	mov	M, A
-0436 2afaff	lhld	 0xfffa
+0436 2afaff	lhld	0xfffa
 0439 7d    	mov	A, L
 043a feee  	cpi	0xee
 043c c24204	jnz	0x0442
@@ -716,7 +721,7 @@
 04b7 d1    	pop	D
 04b8 4b    	mov	C, E
 04b9 eb    	xchg			; hl <--> de
-04ba 2afcff	lhld	 0xfffc
+04ba 2afcff	lhld	0xfffc
 04bd eb    	xchg			; hl <--> de
 04be 71    	mov	M, C
 04bf 23    	inx	H
@@ -743,7 +748,7 @@
 04ed 44    	mov	B, H
 04ee 4d    	mov	C, L
 04ef eb    	xchg			; hl <--> de
-04f0 2afcff	lhld	 0xfffc
+04f0 2afcff	lhld	0xfffc
 04f3 eb    	xchg			; hl <--> de
 04f4 19    	dad	D		; hl += de
 04f5 0a    	ldax	B
@@ -833,7 +838,7 @@
 0593 f680  	ord	0x80
 0595 77    	mov	M, A
 0596 c33604	jmp	0x0436
-0599 2a04ff	lhld	 0xff04
+0599 2a04ff	lhld	0xff04
 059c 56    	mov	D, M
 059d 23    	inx	H
 059e 2204ff	shld	0xff04
@@ -850,6 +855,8 @@
 05b7 d350  	out	0x50
 05b9 f3    	di
 05ba 3206ff	sta	0xff06
+
+; print message "XMISSION ERROR"
 05bd 01ce07	lxi	B, 0x07ce
 05c0 cd9d07	call	0x079d
 05c3 c9    	ret
@@ -886,7 +893,7 @@
 05fc db68  	in	0x68
 05fe 5f    	mov	E, A
 05ff 00    	nop
-0600 2af8ff	lhld	 0xfff8
+0600 2af8ff	lhld	0xfff8
 0603 7e    	mov	A, M
 0604 b7    	ora	A
 0605 c20000	jnz	0x0000
@@ -908,6 +915,9 @@
 0622 3e08  	mvi	A, 0x08
 0624 d378  	out	0x78
 0626 fb    	ei
+
+; Lots of code comes here when finished
+
 0627 e1    	pop	H
 0628 d1    	pop	D
 0629 c1    	pop	B
@@ -922,6 +932,7 @@
 0636 fb    	ei
 0637 db48  	in	0x48
 0639 c34806	jmp	0x0648
+
 063c db78  	in	0x78
 063e 1f    	rar			; rotate right thru carry
 063f d42c07	cnc	0x072c
@@ -929,7 +940,7 @@
 0645 cd1800	call	0x0018
 0648 3e40  	mvi	A, 0x40
 064a d378  	out	0x78
-064c 2af8ff	lhld	 0xfff8
+064c 2af8ff	lhld	0xfff8
 064f c31d06	jmp	0x061d
 
 ; Keyboard input handler
@@ -1015,7 +1026,7 @@
 06f6 db78  	in	0x78
 06f8 e606  	ani	0x06
 06fa ca0a07	jz	0x070a
-06fd 2afaff	lhld	 0xfffa
+06fd 2afaff	lhld	0xfffa
 0700 7e    	mov	A, M
 0701 b7    	ora	A
 0702 d5    	push	D
@@ -1024,7 +1035,7 @@
 0707 c3f306	jmp	0x06f3
 070a 7b    	mov	A, E
 070b d368  	out	0x68
-070d 2a0cff	lhld	 0xff0c
+070d 2a0cff	lhld	0xff0c
 0710 72    	mov	M, D
 0711 23    	inx	H
 0712 7d    	mov	A, L
@@ -1035,7 +1046,7 @@
 071b c28107	jnz	0x0781
 071e 220cff	shld	0xff0c
 0721 c32706	jmp	0x0627
-0724 2a00ff	lhld	 0xff00
+0724 2a00ff	lhld	0xff00
 0727 7e    	mov	A, M
 0728 e67f  	ani	0x7f
 072a 77    	mov	M, A
@@ -1044,7 +1055,7 @@
 072c f5    	push	PSW
 072d e5    	push	H
 072e db48  	in	0x48
-0730 2a12ff	lhld	 0xff12
+0730 2a12ff	lhld	0xff12
 0733 2c    	inr	L
 0734 c23e07	jnz	0x073e
 0737 24    	inr	H
@@ -1070,7 +1081,7 @@
 0761 d350  	out	0x50
 0763 d5    	push	D
 0764 1100c0	lxi	D, 0xc000	; display ram
-0767 2afcff	lhld	 0xfffc
+0767 2afcff	lhld	0xfffc
 076a 4d    	mov	C, L
 076b 19    	dad	D		; hl += de
 076c af    	xra	A
@@ -1100,17 +1111,21 @@
 079c c9    	ret
 
 ; Display message
+;  BC points to message
 079d c5    	push	B
 079e 0100c0	lxi	B, 0xc000	; display ram
-07a1 2afcff	lhld	 0xfffc
+07a1 2afcff	lhld	0xfffc
 07a4 09    	dad	B		; hl += bc
 07a5 c1    	pop	B
-07a6 0a    	ldax	B
-07a7 77    	mov	M, A
-07a8 23    	inx	H
-07a9 03    	inx	B
-07aa b7    	ora	A
-07ab c2a607	jnz	0x07a6
+
+; loop
+07a6 0a    	ldax	B		; a <= (BC)
+07a7 77    	mov	M, A		; (HL) <- a
+07a8 23    	inx	H		; HL++
+07a9 03    	inx	B		; BC++
+07aa b7    	ora	A		; test A
+07ab c2a607	jnz	0x07a6		; end on null
+
 07ae c9    	ret
 
 07af d5    	push	D
@@ -1131,9 +1146,11 @@
 
 ; The following is text
 
-000007bc .... .... .... .... .... .... 5052 494e               PRIN
-000007c0 5445 5220 4e4f 5420 5245 4144 5900 584d   TER NOT READY XM
-000007d0 4953 5349 4f4e 2045 5252 4f52 20.. ....   ISSION ERROR
+07bc .... .... .... .... .... .... 5052 494e               PRIN
+07c0 5445 5220 4e4f 5420 5245 4144 5900 ....   TER NOT READY
+
+07ce .... .... .... .... .... .... .... 584d                 XM
+07d0 4953 5349 4f4e 2045 5252 4f52 20.. ....   ISSION ERROR
 
 07dd 00    	nop
 07de 00    	nop

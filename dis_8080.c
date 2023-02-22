@@ -213,7 +213,7 @@ disassemble(unsigned char* buffer, int pc)
 			opbytes = print_op1 ( opcode, pc, "dad\tH");
 			break;
 		case 0x2a:
-			opbytes = print_op3 ( opcode, pc, "lhld\t ", opcode[2], opcode[1]);
+			opbytes = print_op3 ( opcode, pc, "lhld\t", opcode[2], opcode[1]);
 			// opbytes = 3;
 			break;
 		case 0x2b:
