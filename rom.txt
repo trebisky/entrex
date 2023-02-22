@@ -110,6 +110,7 @@
 001e c9    	ret
 001f 00    	nop
 
+; called from below
 ; rst-4
 0020 f5    	push	PSW		; keyboard input handler
 0021 c5    	push	B
@@ -161,6 +162,7 @@
 0065 21d0ff	lxi	H, 0xffd0
 0068 22faff	shld	0xfffa
 006b 22f8ff	shld	0xfff8
+
 006e db78  	in	0x78
 0070 e620  	ani	0x20
 0072 c27a00	jnz	0x007a
@@ -179,6 +181,8 @@
 008e 3e02  	mvi	A, 0x02
 0090 d350  	out	0x50
 0092 db50  	in	0x50
+
+; main loop
 0094 212800	lxi	H, 0x0028
 0097 db40  	in	0x40
 0099 2f    	cma
@@ -192,7 +196,7 @@
 00aa 2afaff	lhld	 0xfffa
 00ad 7e    	mov	A, M
 00ae b7    	ora	A
-00af c41a04	cnz	0x041a
+00af c41a04	cnz	0x041a		; call if NZ
 00b2 3a09ff	lda	0xff09
 00b5 1f    	rar			; rotate right thru carry
 00b6 d2ca00	jnc	0x00ca
@@ -201,11 +205,11 @@
 00bd daca00	jc	0x00ca
 00c0 db70  	in	0x70
 00c2 e610  	ani	0x10
-00c4 c44d02	cnz	0x024d
-00c7 cce100	cz	0x00e1
+00c4 c44d02	cnz	0x024d		; call if NZ
+00c7 cce100	cz	0x00e1		; call if Z
 00ca db48  	in	0x48
 00cc e640  	ani	0x40
-00ce c42000	cnz	0x0020
+00ce c42000	cnz	0x0020		; call if NZ
 00d1 3a03ff	lda	0xff03
 00d4 1f    	rar			; rotate right thru carry
 00d5 da9400	jc	0x0094
@@ -213,6 +217,8 @@
 00da d378  	out	0x78
 00dc db68  	in	0x68
 00de c39400	jmp	0x0094
+
+; subroutine
 00e1 f5    	push	PSW
 00e2 c5    	push	B
 00e3 d5    	push	D
@@ -375,6 +381,7 @@
 
 022a f1    	pop	PSW
 022b c35703	jmp	0x0357
+
 022e 3e3d  	mvi	A, 0x3d
 0230 d358  	out	0x58
 0232 3e80  	mvi	A, 0x80
@@ -431,6 +438,8 @@
 
 0299 c1    	pop	B
 029a c35703	jmp	0x0357
+
+; jump here from far below
 029d cd8e02	call	0x028e
 02a0 3ef5  	mvi	A, 0xf5
 02a2 d358  	out	0x58
@@ -440,6 +449,8 @@
 02a9 d360  	out	0x60
 02ab af    	xra	A
 02ac c39901	jmp	0x0199
+
+; jump here from far below
 02af 3e05  	mvi	A, 0x05
 02b1 d378  	out	0x78
 02b3 0628  	mvi	B, 0x28
@@ -453,6 +464,8 @@
 02c3 3222ff	sta	0xff22
 02c6 2120f0	lxi	H, 0xf020
 02c9 1100c0	lxi	D, 0xc000	; display ram
+
+; loop
 02cc db48  	in	0x48
 02ce 1a    	ldax	D
 02cf e67f  	ani	0x7f
@@ -480,6 +493,7 @@
 0302 13    	inx	D
 0303 05    	dcr	B
 0304 c2cc02	jnz	0x02cc
+
 0307 360d  	mvi	M, 0x0d
 0309 23    	inx	H
 030a 360a  	mvi	M, 0x0a
@@ -487,6 +501,8 @@
 030f 2207ff	shld	0xff07
 0312 3e01  	mvi	A, 0x01
 0314 3209ff	sta	0xff09
+
+; loop
 0317 3a0eff	lda	0xff0e
 031a 1f    	rar			; rotate right thru carry
 031b da3203	jc	0x0332
@@ -498,6 +514,7 @@
 0329 c44d02	cnz	0x024d
 032c cce100	cz	0x00e1
 032f c31703	jmp	0x0317
+
 0332 3e10  	mvi	A, 0x10
 0334 d360  	out	0x60
 0336 af    	xra	A
@@ -506,6 +523,7 @@
 033c 2120f0	lxi	H, 0xf020
 033f 2207ff	shld	0xff07
 0342 c36901	jmp	0x0169
+
 0345 3a22ff	lda	0xff22
 0348 47    	mov	B, A
 0349 2120f0	lxi	H, 0xf020
@@ -513,7 +531,11 @@
 034f 0d    	dcr	C
 0350 c2cc02	jnz	0x02cc
 0353 c32706	jmp	0x0627
+
+; no path here
 0356 ff    	rst	7
+
+; several jumps (2) to here.
 0357 01bc07	lxi	B, 0x07bc	; message (text)
 035a cd9d07	call	0x079d
 035d 3e01  	mvi	A, 0x01
@@ -971,6 +993,7 @@
 06cb ca7201	jz	0x0172
 06ce 3e0a  	mvi	A, 0x0a
 06d0 c39d02	jmp	0x029d
+
 06d3 fe03  	cpi	0x03
 06d5 c2dd06	jnz	0x06dd
 06d8 16    	dcr	D
