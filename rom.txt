@@ -171,7 +171,7 @@
 007e af    	xra	A
 007f d360  	out	0x60
 0081 db40  	in	0x40
-0083 17    	ral
+0083 17    	ral			; rotate left thru carry
 0084 d28900	jnc	0x0089
 0087 067f  	mvi	B, 0x7f
 0089 cd4305	call	0x0543
@@ -184,7 +184,7 @@
 0099 2f    	cma
 009a e601  	ani	0x01
 009c 3202ff	sta	0xff02
-009f 1f    	rar
+009f 1f    	rar			; rotate right thru carry
 00a0 d2a600	jnc	0x00a6
 00a3 215000	lxi	H, 0x0050
 00a6 22fcff	shld	0xfffc
@@ -194,10 +194,10 @@
 00ae b7    	ora	A
 00af c41a04	cnz	0x041a
 00b2 3a09ff	lda	0xff09
-00b5 1f    	rar
+00b5 1f    	rar			; rotate right thru carry
 00b6 d2ca00	jnc	0x00ca
 00b9 3a0eff	lda	0xff0e
-00bc 1f    	rar
+00bc 1f    	rar			; rotate right thru carry
 00bd daca00	jc	0x00ca
 00c0 db70  	in	0x70
 00c2 e610  	ani	0x10
@@ -207,7 +207,7 @@
 00cc e640  	ani	0x40
 00ce c42000	cnz	0x0020
 00d1 3a03ff	lda	0xff03
-00d4 1f    	rar
+00d4 1f    	rar			; rotate right thru carry
 00d5 da9400	jc	0x0094
 00d8 3e40  	mvi	A, 0x40
 00da d378  	out	0x78
@@ -253,7 +253,7 @@
 012f 16    	dcr	D
 0130 00    	nop
 0131 2a0fff	lhld	 0xff0f
-0134 19    	dad	D
+0134 19    	dad	D		; hl += de
 0135 220fff	shld	0xff0f
 0138 7b    	mov	A, E
 0139 d358  	out	0x58
@@ -316,9 +316,9 @@
 01b8 92    	sub	D
 01b9 6f    	mov	L, A
 01ba 2600  	mvi	H, 0x00
-01bc 29    	dad	H
-01bd 29    	dad	H
-01be 29    	dad	H
+01bc 29    	dad	H		; hl += hl
+01bd 29    	dad	H		; hl += hl
+01be 29    	dad	H		; hl += hl
 01bf 7d    	mov	A, L
 01c0 d358  	out	0x58
 01c2 7c    	mov	A, H
@@ -344,7 +344,7 @@
 01ed 0600  	mvi	B, 0x00
 01ef eb    	xchg			; hl <--> de
 01f0 210000	lxi	H, 0x0000
-01f3 09    	dad	B
+01f3 09    	dad	B		; hl += bc
 01f4 13    	inx	D
 01f5 1a    	ldax	D
 01f6 fe20  	cpi	0x20
@@ -363,11 +363,11 @@
 0210 e6bf  	ani	0xbf
 0212 d360  	out	0x60
 0214 2a0fff	lhld	 0xff0f
-0217 19    	dad	D
+0217 19    	dad	D		; hl += de
 0218 220fff	shld	0xff0f
 021b c32706	jmp	0x0627
 021e db70  	in	0x70
-0220 1f    	rar
+0220 1f    	rar			; rotate right thru carry
 0221 da2a02	jc	0x022a
 0224 e610  	ani	0x10
 0226 ca2a02	jz	0x022a
@@ -423,9 +423,9 @@
 0288 2207ff	shld	0xff07
 028b c32706	jmp	0x0627
 028e db70  	in	0x70
-0290 1f    	rar
+0290 1f    	rar			; rotate right thru carry
 0291 da9902	jc	0x0299
-0294 1f    	rar
+0294 1f    	rar			; rotate right thru carry
 0295 d29902	jnc	0x0299
 0298 c9    	ret
 
@@ -445,7 +445,7 @@
 02b3 0628  	mvi	B, 0x28
 02b5 0e0c  	mvi	C, 0x0c
 02b7 3a02ff	lda	0xff02
-02ba 1f    	rar
+02ba 1f    	rar			; rotate right thru carry
 02bb d2c202	jnc	0x02c2
 02be 0650  	mvi	B, 0x50
 02c0 0e18  	mvi	C, 0x18
@@ -488,10 +488,10 @@
 0312 3e01  	mvi	A, 0x01
 0314 3209ff	sta	0xff09
 0317 3a0eff	lda	0xff0e
-031a 1f    	rar
+031a 1f    	rar			; rotate right thru carry
 031b da3203	jc	0x0332
 031e 3a09ff	lda	0xff09
-0321 1f    	rar
+0321 1f    	rar			; rotate right thru carry
 0322 d24503	jnc	0x0345
 0325 db70  	in	0x70
 0327 e610  	ani	0x10
@@ -557,7 +557,7 @@
 03ae cde403	call	0x03e4
 03b1 c39903	jmp	0x0399
 03b4 db78  	in	0x78
-03b6 1f    	rar
+03b6 1f    	rar			; rotate right thru carry
 03b7 d42c07	cnc	0x072c
 03ba d2b403	jnc	0x03b4
 03bd cd1800	call	0x0018
@@ -566,7 +566,7 @@
 03c4 320bff	sta	0xff0b
 03c7 c32606	jmp	0x0626
 03ca db78  	in	0x78
-03cc 1f    	rar
+03cc 1f    	rar			; rotate right thru carry
 03cd d42c07	cnc	0x072c
 03d0 d2ca03	jnc	0x03ca
 03d3 cd1800	call	0x0018
@@ -611,7 +611,7 @@
 0420 2b    	dcx	H
 0421 70    	mov	M, B
 0422 fb    	ei
-0423 17    	ral
+0423 17    	ral			; rotate left thru carry
 0424 da6504	jc	0x0465
 0427 2a00ff	lhld	 0xff00
 042a cd4804	call	0x0448
@@ -639,9 +639,9 @@
 0450 c9    	ret
 
 0451 fe5e  	cpi	0x5e
-0453 c0    	rnz
+0453 c0    	rnz			; return if NZ
 0454 16    	dcr	D
-0455 1f    	rar
+0455 1f    	rar			; rotate right thru carry
 0456 c9    	ret
 
 0457 feb6  	cpi	0xb6
@@ -651,10 +651,10 @@
 045e c9    	ret
 
 045f feb8  	cpi	0xb8
-0461 c0    	rnz
+0461 c0    	rnz			; return if NZ
 0462 16    	dcr	D
 0463 1ec9  	mvi	E, 0xc9
-0465 17    	ral
+0465 17    	ral			; rotate left thru carry
 0466 da9704	jc	0x0497
 0469 7a    	mov	A, D
 046a fea9  	cpi	0xa9
@@ -675,7 +675,7 @@
 0491 cd4305	call	0x0543
 0494 c33604	jmp	0x0436
 0497 7b    	mov	A, E
-0498 17    	ral
+0498 17    	ral			; rotate left thru carry
 0499 da6205	jc	0x0562
 049c 7a    	mov	A, D
 049d e61f  	ani	0x1f
@@ -686,11 +686,11 @@
 04a7 d5    	push	D
 04a8 3a02ff	lda	0xff02
 04ab cdaf07	call	0x07af
-04ae 1f    	rar
+04ae 1f    	rar			; rotate right thru carry
 04af dcba07	cc	0x07ba
 04b2 eb    	xchg			; hl <--> de
 04b3 2100c0	lxi	H, 0xc000	; display ram
-04b6 19    	dad	D
+04b6 19    	dad	D		; hl += de
 04b7 d1    	pop	D
 04b8 4b    	mov	C, E
 04b9 eb    	xchg			; hl <--> de
@@ -714,16 +714,16 @@
 04de 6f    	mov	L, A
 04df 3a02ff	lda	0xff02
 04e2 cdaf07	call	0x07af
-04e5 1f    	rar
+04e5 1f    	rar			; rotate right thru carry
 04e6 dcba07	cc	0x07ba
 04e9 0100c0	lxi	B, 0xc000	; display ram
-04ec 09    	dad	B
+04ec 09    	dad	B		; hl += bc
 04ed 44    	mov	B, H
 04ee 4d    	mov	C, L
 04ef eb    	xchg			; hl <--> de
 04f0 2afcff	lhld	 0xfffc
 04f3 eb    	xchg			; hl <--> de
-04f4 19    	dad	D
+04f4 19    	dad	D		; hl += de
 04f5 0a    	ldax	B
 04f6 77    	mov	M, A
 04f7 23    	inx	H
@@ -732,7 +732,7 @@
 04fa c2f504	jnz	0x04f5
 04fd c33604	jmp	0x0436
 0500 3a03ff	lda	0xff03
-0503 1f    	rar
+0503 1f    	rar			; rotate right thru carry
 0504 d22706	jnc	0x0627
 0507 cd8f07	call	0x078f
 050a 3e90  	mvi	A, 0x90
@@ -745,14 +745,14 @@
 0519 cd2407	call	0x0724
 051c 1100c0	lxi	D, 0xc000	; display ram
 051f 3a02ff	lda	0xff02
-0522 1f    	rar
+0522 1f    	rar			; rotate right thru carry
 0523 da2f05	jc	0x052f
 0526 212800	lxi	H, 0x0028
 0529 0148fe	lxi	B, 0xfe48
 052c c33505	jmp	0x0535
 052f 215000	lxi	H, 0x0050
 0532 01d0f8	lxi	B, 0xf8d0
-0535 19    	dad	D
+0535 19    	dad	D		; hl += de
 0536 7e    	mov	A, M
 0537 12    	stax	D
 0538 23    	inx	H
@@ -774,7 +774,7 @@
 0551 c24905	jnz	0x0549
 0554 78    	mov	A, B
 0555 fe00  	cpi	0x00
-0557 c0    	rnz
+0557 c0    	rnz			; return if NZ
 0558 2150c0	lxi	H, 0xc050
 055b 3e80  	mvi	A, 0x80
 055d 77    	mov	M, A
@@ -794,18 +794,18 @@
 0577 d5    	push	D
 0578 3a02ff	lda	0xff02
 057b cdaf07	call	0x07af
-057e 1f    	rar
+057e 1f    	rar			; rotate right thru carry
 057f dcba07	cc	0x07ba
 0582 eb    	xchg			; hl <--> de
 0583 21ffbf	lxi	H, 0xbfff
-0586 19    	dad	D
+0586 19    	dad	D		; hl += de
 0587 d1    	pop	D
 0588 16    	dcr	D
 0589 00    	nop
 058a 7b    	mov	A, E
 058b e67f  	ani	0x7f
 058d 5f    	mov	E, A
-058e 19    	dad	D
+058e 19    	dad	D		; hl += de
 058f 2200ff	shld	0xff00
 0592 7e    	mov	A, M
 0593 f680  	ord	0x80
@@ -839,7 +839,7 @@
 05c9 c5    	push	B
 05ca d5    	push	D
 05cb e5    	push	H
-05cc 17    	ral
+05cc 17    	ral			; rotate left thru carry
 05cd da2d06	jc	0x062d
 05d0 3e04  	mvi	A, 0x04
 05d2 d378  	out	0x78
@@ -850,12 +850,12 @@
 05dc caec05	jz	0x05ec
 05df fea2  	cpi	0xa2
 05e1 caec05	jz	0x05ec
-05e4 17    	ral
+05e4 17    	ral			; rotate left thru carry
 05e5 d2ff05	jnc	0x05ff
-05e8 17    	ral
+05e8 17    	ral			; rotate left thru carry
 05e9 d2ff05	jnc	0x05ff
 05ec db78  	in	0x78
-05ee 1f    	rar
+05ee 1f    	rar			; rotate right thru carry
 05ef d42c07	cnc	0x072c
 05f2 d2ec05	jnc	0x05ec
 05f5 cd1800	call	0x0018
@@ -901,7 +901,7 @@
 0637 db48  	in	0x48
 0639 c34806	jmp	0x0648
 063c db78  	in	0x78
-063e 1f    	rar
+063e 1f    	rar			; rotate right thru carry
 063f d42c07	cnc	0x072c
 0642 d23c06	jnc	0x063c
 0645 cd1800	call	0x0018
@@ -918,7 +918,7 @@
 0657 ba    	cmp	D
 0658 ca4407	jz	0x0744
 065b 3a06ff	lda	0xff06
-065e 1f    	rar
+065e 1f    	rar			; rotate right thru carry
 065f da2706	jc	0x0627
 0662 db48  	in	0x48
 0664 e607  	ani	0x07
@@ -932,7 +932,7 @@
 0676 7a    	mov	A, D
 0677 d370  	out	0x70
 0679 3a03ff	lda	0xff03
-067c 1f    	rar
+067c 1f    	rar			; rotate right thru carry
 067d daf306	jc	0x06f3
 0680 7b    	mov	A, E
 0681 d368  	out	0x68
@@ -1033,7 +1033,7 @@
 0743 c9    	ret
 
 0744 3a06ff	lda	0xff06
-0747 1f    	rar
+0747 1f    	rar			; rotate right thru carry
 0748 d25807	jnc	0x0758
 074b fb    	ei
 074c 2114ff	lxi	H, 0xff14
@@ -1041,7 +1041,7 @@
 0752 2204ff	shld	0xff04
 0755 c35f07	jmp	0x075f
 0758 3a0eff	lda	0xff0e
-075b 1f    	rar
+075b 1f    	rar			; rotate right thru carry
 075c d26206	jnc	0x0662
 075f 3e02  	mvi	A, 0x02
 0761 d350  	out	0x50
@@ -1049,7 +1049,7 @@
 0764 1100c0	lxi	D, 0xc000	; display ram
 0767 2afcff	lhld	 0xfffc
 076a 4d    	mov	C, L
-076b 19    	dad	D
+076b 19    	dad	D		; hl += de
 076c af    	xra	A
 076d 77    	mov	M, A
 076e 23    	inx	H
@@ -1080,7 +1080,7 @@
 079d c5    	push	B
 079e 0100c0	lxi	B, 0xc000	; display ram
 07a1 2afcff	lhld	 0xfffc
-07a4 09    	dad	B
+07a4 09    	dad	B		; hl += bc
 07a5 c1    	pop	B
 07a6 0a    	ldax	B
 07a7 77    	mov	M, A
@@ -1091,18 +1091,19 @@
 07ae c9    	ret
 
 07af d5    	push	D
-07b0 29    	dad	H
-07b1 29    	dad	H
-07b2 29    	dad	H
+07b0 29    	dad	H		; hl += hl
+07b1 29    	dad	H		; hl += hl
+07b2 29    	dad	H		; hl += hl
 07b3 54    	mov	D, H
 07b4 5d    	mov	E, L
-07b5 29    	dad	H
-07b6 29    	dad	H
-07b7 19    	dad	D
+07b5 29    	dad	H		; hl += hl
+07b6 29    	dad	H		; hl += hl
+07b7 19    	dad	D		; hl += de
 07b8 d1    	pop	D
 07b9 c9    	ret
 
-07ba 29    	dad	H
+; subroutine called by "cc" instruction
+07ba 29    	dad	H		; hl += hl
 07bb c9    	ret
 
 ; The following is text
