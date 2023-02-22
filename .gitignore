@@ -2,3 +2,4 @@ dis_8080
 *.bak
 *.old
 *.OLD
+rom.out
