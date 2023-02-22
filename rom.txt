@@ -1092,6 +1092,7 @@
 07ab	JNZ	0x07A6
 07ae	RET
 
+; subroutine
 07af	PUSH	D
 07b0	DAD	H
 07b1	DAD	H
@@ -1140,6 +1141,7 @@
 07da	MOV	C, A
 07db	MOV	D, D
 07dc	RIM
+
 07dd	NOP
 07de	NOP
 07df	NOP
