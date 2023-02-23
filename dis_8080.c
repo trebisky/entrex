@@ -842,7 +842,7 @@ disassemble(unsigned char* buffer, int pc)
 			opbytes = print_op1 ( opcode, pc, "push\tPSW");
 			break;
 		case 0xf6:
-			opbytes = print_op2 ( opcode, pc, "ord\t", opcode[1]);
+			opbytes = print_op2 ( opcode, pc, "ori\t", opcode[1]);
 			// opbytes = 2;
 			break;
 		case 0xf7:

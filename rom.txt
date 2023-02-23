@@ -57,6 +57,9 @@
 ;	70 - unused
 ;	78
 ;
+; OUT port 68 -- only ever is 0xff written
+; OUT port 78 -- all 8 bits are used
+;
 ; Note that a series of 8 ports are used for each of the above,
 ;  so a single LS138 could be used to decode each.
 ;
@@ -279,9 +282,9 @@
 0159 7d    	mov	A, L
 015a d358  	out	0x58
 015c 7c    	mov	A, H
-015d f604  	ord	0x04
+015d f604  	ori	0x04
 015f d360  	out	0x60
-0161 f640  	ord	0x40
+0161 f640  	ori	0x40
 0163 d360  	out	0x60
 0165 e6bf  	ani	0xbf
 0167 d360  	out	0x60
@@ -330,7 +333,7 @@
 01c2 7c    	mov	A, H
 01c3 e603  	ani	0x03
 01c5 d360  	out	0x60
-01c7 f620  	ord	0x20
+01c7 f620  	ori	0x20
 01c9 d360  	out	0x60
 01cb e6df  	ani	0xdf
 01cd d360  	out	0x60
@@ -364,7 +367,7 @@
 0207 d358  	out	0x58
 0209 7a    	mov	A, D
 020a d360  	out	0x60
-020c f640  	ord	0x40
+020c f640  	ori	0x40
 020e d360  	out	0x60
 0210 e6bf  	ani	0xbf
 0212 d360  	out	0x60
@@ -646,7 +649,7 @@
 042e 23    	inx	H
 042f 2200ff	shld	0xff00
 0432 7e    	mov	A, M
-0433 f680  	ord	0x80
+0433 f680  	ori	0x80
 0435 77    	mov	M, A
 0436 2afaff	lhld	0xfffa
 0439 7d    	mov	A, L
@@ -835,7 +838,7 @@
 058e 19    	dad	D		; hl += de
 058f 2200ff	shld	0xff00
 0592 7e    	mov	A, M
-0593 f680  	ord	0x80
+0593 f680  	ori	0x80
 0595 77    	mov	M, A
 0596 c33604	jmp	0x0436
 0599 2a04ff	lhld	0xff04
