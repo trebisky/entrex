@@ -1,0 +1,91 @@
+#!/bin/python3
+
+# Entrex project
+# this program reads a list of symbol renames then applies
+# those to the KiCAD schamtic file.
+# I copied the original schematic to "proto_sch" and intend to
+#  keep it as a "pristine file".
+# The modified version gets written to "new_sch", which on my
+#  system is a symbolic link to the actual file that KiCAD
+#  looks at, namely:
+#    Entrex Trapezoid Processor Board v37.kicad_sch
+#
+# Anyone else (I'm looking at you AJ) who wants to use this
+#   will need to make such copies and links and/or make changes
+#   here and/or suffer the consequences.
+#
+#  Tom Trebisky 4-13-2023
+
+class Mapper () :
+    def __init__ ( self, who ) :
+        self.who = who
+
+        if who == "processor" :
+            self.path = "Processor Board/"
+            self.data = "processor_remap"
+        elif who == "interface" :
+            self.path = "Interface Board/"
+            self.data = "interface_remap"
+        else :
+            print ( "Game over" )
+            exit ()
+
+        self.in_sch = self.path + "proto_sch"
+        self.out_sch = self.path + "new_sch"
+
+        self.load_remap ()
+
+    # We need to take some special pains to avoid partial matches
+    # For example J18_1 will match J18_13 and so forth.
+    # We fix this by putting quotes onto the front and end of both
+    # the key and value in the mapping dictionary.
+    def load_remap ( self ) :
+        rv = {}
+
+        with open ( self.data, 'r') as f:
+            for line in f:
+                if line == "\n" :
+                    continue
+                if line[0] == '#' :
+                    continue
+                xline = line.rstrip()
+                words = xline.split()
+                key = "\"" + words[0] + "\""
+                value = "\"" + words[1] + "\""
+                if len ( words ) == 2 :
+                    rv[key] = value
+
+        self.map = rv
+
+    def fix_line ( self, line, search_list ) :
+
+        for s in search_list :
+            if s in line :
+                line = line.replace ( s, self.map[s] )
+
+        return line
+
+    def do_the_remap ( self ) :
+        search_list = list(self.map.keys())
+
+        print ( len(search_list), " remaps for ", self.who )
+
+        outfile = open ( self.out_sch, 'w')
+
+        with open ( self.in_sch, 'r') as f:
+            for line in f:
+                #new = fix_line ( line.rstrip(), map, search_list )
+                new = self.fix_line ( line, search_list )
+                outfile.write ( new )
+
+        outfile.close ()
+
+
+x = Mapper ( "processor" )
+x.do_the_remap ()
+
+x = Mapper ( "interface" )
+x.do_the_remap ()
+
+# THE END
+

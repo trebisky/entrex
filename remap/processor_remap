@@ -1,0 +1,145 @@
+# remap file to change symbol names on the Entrex Processor Board schematic
+# Tom Trebisky  4-12-2023
+
+# Address bus (buffered signals)
+UJ1_9	A0
+UJ6_3	A1
+UJ1_11	A2
+UJ6_1	A3
+UJ1_13	A4
+UJ2_3	A5
+
+UK1_9	A6
+UJ6_7	A7
+UK1_11	A8
+UK2_5	A9
+UK1_13	A10
+UK2_3	A11
+
+UL1_9	A12
+UL2_7	A13
+UL1_11	A14
+UH4_2	A15
+
+# We have to give these different names as they aren't connected
+# even though they are the same logical signal
+J18_60	A15*
+UL1_2	A15**
+
+J18_56	A13*
+UL3_11	A13**
+
+J18_54	A12*
+UL3_5	A12**
+
+# Using a backslash causes problems.
+# Kicad sees it as escaping the quote at the end of the string,
+# then complains about an unterminated string.
+#J18_45	WR\
+J18_45	WR*
+
+# Now the data bus
+J17_6	DO0
+J17_8	DO1
+J17_10	DO2
+J17_12	DO3
+J17_14	DO4
+J17_16	DO5
+J17_18	DO6
+J17_20	DO7
+
+J17_36	DI0
+J17_34	DI1
+J17_32	DI2
+J17_30	DI3
+J17_28	DI4
+J17_26	DI5
+J17_24	DI6
+J17_22	DI7
+
+# Outputs from the UE1 address decoder
+# Our roms are 1K by 8 chips (2708)
+# 0000, 
+J18_15	ROM0SEL*
+J18_13	ROM1SEL*
+J18_11	rom_0800*
+J18_9	rom_0C00*
+J18_7	rom_1000*
+J18_5	rom_1400*
+J18_3	rom_1800*
+J18_1	rom_1c00*
+
+# Signals directly from the CPU are generally of no interest as they usually
+# just go to a buffer chip that generates the truly interesting signal.
+# But in some cases I do relabel them.  When I do I prefix them with a
+# lower case "p" for processor.  The buffered signal omits the "p"
+
+UH4_13	pDBIN
+J18_25	DBIN
+UH1_5	DBIN*
+
+# Now here is the processor status (mystery) section
+# Here also, unbuffered (raw) signals get a lower case "s" prefix.
+UD2_14	sINTA
+
+UH4_5	sOUT
+J18_27	OUT*
+UF4_7	sINP
+J18_29	INP*
+J18_18	sMEMR
+
+# Now the processor RAM (stack and variables)
+UK6_19	RAMSEL*
+
+# Who is sending addresses to video ram.
+UE4_1	VCPUSEL*
+J18_23	VWR*
+
+# Now the select signals from the IO port decoders
+J17_21	inp_40*
+J17_19	inp_48*
+J17_17	inp_50*
+J17_15	inp_58*
+J17_13	inp_60*
+J17_11	inp_68*
+J17_9	inp_70*
+J17_7	inp_78*
+
+J17_41	outp_40*
+J17_39	outp_48*
+J17_37	outp_50*
+J17_35	outp_58*
+J17_33	outp_60*
+J17_31	outp_68*
+J17_29	outp_70*
+J17_27	outp_78*
+
+# Video ram address lines
+J18_67	VR_A0
+J18_69	VR_A1
+J18_71	VR_A2
+J18_73	VR_A3
+J18_65	VR_A4
+J18_63	VR_A5
+J18_61	VR_A6
+J18_59	VR_A7
+
+UM4_1	VR_A8
+UL4_12	VR_A9
+UL4_7	VR_A10
+UM2_1	VR_A11
+
+UL3_7	VR_A12
+UM2_5	VR_A13
+UL3_12	VR_A14
+UM3_9	VR_A15
+
+# CRT (video) signals
+# I may have H/V backwards, I am just guessing at this point
+J18_31	Cvideo
+J17_68	Hsync
+J17_70	Vsync
+J17_5	Hsync*
+J17_64	Vsync*
+
+# THE END
