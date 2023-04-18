@@ -23,8 +23,8 @@ cp 'Entrex Trapezoid Processor Board v37.kicad_sch' proto_sch
 cp 'Entrex Trapezoid Processor Board v37.kicad_pcb' proto_pcb
 
 The reason I do this is to keep this as the pristine, never-changing copy of the original schematic
-done by AJ.  Every time I rerun the "remap" script, it overwrites the original filename (so KiCAD
-can find it).  I never touch the proto files.
+done by AJ.  Every time I rerun the "remap" script, it overwrites the original long filename
+(so KiCAD can find it).  I never touch the proto files.
 
 If I was AJ using this program, I would create a copy of the whole project to avoid unhappy mishaps.
 

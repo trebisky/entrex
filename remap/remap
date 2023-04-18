@@ -68,17 +68,21 @@ class Mapper () :
     def do_the_remap ( self ) :
         search_list = list(self.map.keys())
 
-        print ( len(search_list), " remaps for ", self.who )
-
         outfile = open ( self.out_sch, 'w')
 
-        with open ( self.in_sch, 'r') as f:
-            for line in f:
-                #new = fix_line ( line.rstrip(), map, search_list )
-                new = self.fix_line ( line, search_list )
-                outfile.write ( new )
+        try:
+            with open ( self.in_sch, 'r') as f:
+                for line in f:
+                    #new = fix_line ( line.rstrip(), map, search_list )
+                    new = self.fix_line ( line, search_list )
+                    outfile.write ( new )
+        except Exception:
+            print ( "Cannot open prototype schematic file: ", self.in_sch )
+            exit ()
 
         outfile.close ()
+
+        print ( len(search_list), " remaps for ", self.who )
 
 
 x = Mapper ( "processor" )
