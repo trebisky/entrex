@@ -9,7 +9,10 @@
 ;   https://github.com/snwlvl/Intel-8080-Disassembler.git
 ;
 ; This is clean and simple C code and only 848 lines of it.
-; It seems just fine.
+; It seems just fine, but I ended up making several changes.
+; I want the address on every line as well as a hex
+;  display of the opcode bytes.
+; I also prefer seeing the mnemonics in lower case.
 ;
 ; This board is based on an AMD 8080 chip.
 ; A pair of 2708 chips held this code (a mere 2k in 2 chips).
@@ -57,20 +60,25 @@
 ;	70 - unused
 ;	78
 ;
+; OUT port 40 -- written in just one place
+; OUT port 50 -- only 1, 2, 4 written
+; OUT port 58 -- tricky, but most bits used
+; OUT port 60 -- tricky, but most bits used
 ; OUT port 68 -- only ever is 0xff written
 ; OUT port 78 -- all 8 bits are used
 ;
 ; Note that a series of 8 ports are used for each of the above,
-;  so a single LS138 could be used to decode each.
+;  so a single LS138 could be used to decode each (and is!).
 ;
 ; Consider 8080 interrupts.  There is one INT pin which is driven high
 ; to cause an interrupt.  Logic external to the processor must then jam
 ; a single byte instruction onto the bus.  The usual thing is one of
 ; the RST (restart) instructions.  This instruction has a 3 bit field
-; that selects on of 0, 8, 0x10, 0x18, ...  The RST is a CALL so it
+; that selects one of 0, 8, 0x10, 0x18, ...  The RST is a CALL so it
 ; saves the PC on the stack.
 ;
 ; Here is a short course on the 8080 ...
+;
 ; First, remember that the Z80 is backward compatible with the 8080.
 ; so if you have 8080 books laying around (as I do) they can be very
 ; useful for understanding the basic instruction set, as long as you
@@ -82,8 +90,26 @@
 ;  D and E are 8 bit registers than are sometimes a 16 bit pair
 ;  H and L are 8 bit registers than are sometimes a 16 bit pair
 ;
-; SHLD and LHLD instructions store and load to/from memory
-;  They move 16 bits to/from the HL register.
+; shld and lhld instructions store and load HL to/from memory
+;  They move 16 bits to/from the HL register to a
+;  memory address given by 2 bytes in the instruction
+;
+; lxi loads a 16 bit value into a register pair
+;  note that generally only the first register of
+;  the pair is named (a stupid convention)
+;
+; rar rotates the accumulator right through carry.
+;  this is a common way to test the low bit in A
+;  do a RAR, then jump or call conditional on carry.
+; ral is the same thing, but rotates left.
+;  likewise this is a common way to test the high bit in A.
+; There are also rrc and rlc instructions.
+;  These set the carry bit just like rar and rlc.
+;  The difference is that the carry is not in the rotation.
+;  Just the 8 bits in A rotate with carry being set as a
+;  side effect (so these could be used just as well as
+;  rar or rlc if the point is to test the high or low bit).
+;  I never see rar or rlc being used in this code.
 ;
 ; ----------------------------------
 
@@ -94,26 +120,37 @@
 0002 31d0ff	lxi	SP, 0xffd0	; set up stack
 0005 c34000	jmp	0x0040		; jump to Main
 
-; rst-1
+; rst-1 - from floppy controller board (never produced)
 0008 00    	nop			; joins hard reboot
 0009 c33800	jmp	0x0038
 000c c33800	jmp	0x0038
 000f 00    	nop
-
-; rst-2
+/
+; rst-2 - from floppy controller board (never produced)
 0010 00    	nop			; joins hard reboot
 0011 c33800	jmp	0x0038
 0014 c33800	jmp	0x0038
 0017 00    	nop
 
-; this gets called from various places
 ; rst-3
-0018 210080	lxi	H, 0x8000
+; The schematic shows this interrupt as unconnected (but pulled up)
+; This gets called from various places, but never as an interrupt
+;  handler apparently.
+;
+; An odd place to park a tiny subroutine
+; It just resets the value stored at 0xff12 to 0x8000
+; This is used in an odd watchdog/timeout scheme while
+; polling 0x78 for host status.  One flaw is that this is
+; never initialized, so the first timeout is indeterminate.
+;
+; call this "dog_reset"
+
+0018 210080	lxi	H, 0x8000	; HL <- 0x80000
 001b 2212ff	shld	0xff12
 001e c9    	ret
 001f 00    	nop
 
-; called from below
+; called from below, as well as a keyboard interrupt handler
 ; rst-4
 0020 f5    	push	PSW		; keyboard input handler
 0021 c5    	push	B
@@ -122,7 +159,7 @@
 0024 c35206	jmp	0x0652
 0027 00    	nop
 
-; rst-5
+; rst-5 -- from interface board to host
 0028 f5    	push	PSW
 0029 c5    	push	B
 002a d5    	push	D
@@ -130,30 +167,40 @@
 002c c36703	jmp	0x0367
 002f 00    	nop
 
-; rst-6
+; rst-6 -- from interface board to host
 0030 f5    	push	PSW
 0031 db78  	in	0x78
 0033 f5    	push	PSW
 0034 c3c405	jmp	0x05c4
 0037 00    	nop
 
-; rst-7
+; rst-7 -- from interface board (printer section)
+; (could just as well just jmp to 0x0000)
 0038 f3    	di			; hard reboot
 0039 31d0ff	lxi	SP, 0xffd0
 003c c30000	jmp	0x0000
 003f 00    	nop
 
-; Main
+; ------------------------------------
+; End of interrupt handlers,
+; Main code begins here
+
 0040 3e06  	mvi	A, 0x06
 0042 d378  	out	0x78
 0044 2100f0	lxi	H, 0xf000
 0047 0600  	mvi	B, 0x00
 
-0049 70    	mov	M, B		; loop to clear display
-004a 23    	inx	H
+; This looks like a loop to clear the display, but ....
+; it only covers 256 bytes, and it writes to base
+; address 0xf000.  Mysterious.
+
+0049 70    	mov	M, B		; (HL) <- 0
+004a 23    	inx	H		; HL++
 004b 7c    	mov	A, H
 004c b7    	ora	A
 004d c24900	jnz	0x0049
+
+; initialize a bunch of stuff in low memory
 
 0050 2114ff	lxi	H, 0xff14
 0053 2204ff	shld	0xff04
@@ -169,25 +216,33 @@
 006e db78  	in	0x78
 0070 e620  	ani	0x20
 0072 c27a00	jnz	0x007a
-0075 3e01  	mvi	A, 0x01
-0077 3203ff	sta	0xff03
+
+; We set this flag (xx_flag) to 1.
+; No other value is ever set.
+; This is tested in several places.
+
+0075 3e01  	mvi	A, 0x01		; A <- 1
+0077 3203ff	sta	0xff03		; set xx_flag to 1
+
 007a 3e10  	mvi	A, 0x10
 007c d360  	out	0x60
-007e af    	xra	A
+007e af    	xra	A		; A <- 0
 007f d360  	out	0x60
-0081 db40  	in	0x40
-0083 17    	ral			; rotate left thru carry
+0081 db40  	in	0x40		; on RAM expansion board
+0083 17    	ral			; get high bit
 0084 d28900	jnc	0x0089
 0087 067f  	mvi	B, 0x7f
 0089 cd4305	call	0x0543
 008c d340  	out	0x40
 008e 3e02  	mvi	A, 0x02
-0090 d350  	out	0x50
-0092 db50  	in	0x50
+
+; Initialize keyboard logic
+0090 d350  	out	0x50		; clear kb_555
+0092 db50  	in	0x50		; read keyboard data
 
 ; main loop
-0094 212800	lxi	H, 0x0028
-0097 db40  	in	0x40
+0094 212800	lxi	H, 0x0028	; HL = 0x0028
+0097 db40  	in	0x40		; on RAM expansion board
 0099 2f    	cma
 009a e601  	ani	0x01
 009c 3202ff	sta	0xff02
@@ -195,7 +250,7 @@
 00a0 d2a600	jnc	0x00a6
 00a3 215000	lxi	H, 0x0050
 00a6 22fcff	shld	0xfffc
-00a9 fb    	ei
+00a9 fb    	ei			; enable interrupts
 00aa 2afaff	lhld	0xfffa
 00ad 7e    	mov	A, M
 00ae b7    	ora	A
@@ -206,22 +261,30 @@
 00b9 3a0eff	lda	0xff0e
 00bc 1f    	rar			; rotate right thru carry
 00bd daca00	jc	0x00ca
-00c0 db70  	in	0x70
+00c0 db70  	in	0x70		; read printer status
 00c2 e610  	ani	0x10
 00c4 c44d02	cnz	0x024d		; call if NZ
 00c7 cce100	cz	0x00e1		; call if Z
-00ca db48  	in	0x48
+
+; check the keyboard status.
+; If the FF bit is set, we have data --
+; call the keyboard interrupt routine above.
+
+00ca db48  	in	0x48		; read keyboard status
 00cc e640  	ani	0x40
 00ce c42000	cnz	0x0020		; call if NZ
-00d1 3a03ff	lda	0xff03
-00d4 1f    	rar			; rotate right thru carry
+
+; xx_flag is always 1, so the jump to 0094 always takes place
+00d1 3a03ff	lda	0xff03		; get "xx_flag"
+00d4 1f    	rar			; get low bit
 00d5 da9400	jc	0x0094
+
 00d8 3e40  	mvi	A, 0x40
 00da d378  	out	0x78
 00dc db68  	in	0x68
-00de c39400	jmp	0x0094
+00de c39400	jmp	0x0094		; loop to top ^^^
 
-; subroutine
+; subroutine (2 calls)
 00e1 f5    	push	PSW
 00e2 c5    	push	B
 00e3 d5    	push	D
@@ -237,9 +300,9 @@
 00f8 fe20  	cpi	0x20
 00fa cadd01	jz	0x01dd
 00fd cd1e02	call	0x021e
-0100 db70  	in	0x70
+0100 db70  	in	0x70		; read printer status
 0102 e608  	ani	0x08
-0104 ca2706	jz	0x0627
+0104 ca2706	jz	0x0627		; jump to END of interrupt
 0107 7e    	mov	A, M
 0108 feb8  	cpi	0xb8
 010a cc4a02	cz	0x024a
@@ -248,13 +311,13 @@
 0112 d358  	out	0x58
 0114 3e80  	mvi	A, 0x80
 0116 d360  	out	0x60
-0118 af    	xra	A
+0118 af    	xra	A		; A <- 0
 0119 d360  	out	0x60
 011b 23    	inx	H
 011c 2207ff	shld	0xff07
 011f cd1e02	call	0x021e
-0122 db48  	in	0x48
-0124 db70  	in	0x70
+0122 db48  	in	0x48		; read keyboard status (pointless)
+0124 db70  	in	0x70		; read printer status
 0126 e604  	ani	0x04
 0128 ca1f01	jz	0x011f
 012b 3a0bff	lda	0xff0b
@@ -268,13 +331,13 @@
 0139 d358  	out	0x58
 013b 3e40  	mvi	A, 0x40
 013d d360  	out	0x60
-013f af    	xra	A
+013f af    	xra	A		; A <- 0
 0140 d360  	out	0x60
-0142 c32706	jmp	0x0627
+0142 c32706	jmp	0x0627		; jump to END of interrupt
 0145 cd1e02	call	0x021e
-0148 db70  	in	0x70
+0148 db70  	in	0x70		; read printer status
 014a e604  	ani	0x04
-014c ca2706	jz	0x0627
+014c ca2706	jz	0x0627		; jump to END of interrupt
 014f 2a07ff	lhld	0xff07
 0152 23    	inx	H
 0153 2207ff	shld	0xff07
@@ -290,35 +353,42 @@
 0167 d360  	out	0x60
 0169 210000	lxi	H, 0x0000
 016c 220fff	shld	0xff0f
-016f c32706	jmp	0x0627
+016f c32706	jmp	0x0627		; jump to END of interrupt
+
+; The following looks like a loop waiting for keyboard status
+; to go non-zero
 0172 cd1e02	call	0x021e
-0175 db70  	in	0x70
+0175 db70  	in	0x70		; read printer status
 0177 e602  	ani	0x02
-0179 db48  	in	0x48
+0179 db48  	in	0x48		; read keyboard status
 017b ca7201	jz	0x0172
+
 017e 3a0aff	lda	0xff0a
 0181 57    	mov	D, A
 0182 3a11ff	lda	0xff11
 0185 3c    	inr	A
 0186 ba    	cmp	D
 0187 c28b01	jnz	0x018b
-018a af    	xra	A
+018a af    	xra	A		; A <- 0
 018b 3211ff	sta	0xff11
 018e 3e08  	mvi	A, 0x08
 0190 d358  	out	0x58
 0192 3e20  	mvi	A, 0x20
 0194 d360  	out	0x60
-0196 af    	xra	A
+0196 af    	xra	A		; A <- 0
 0197 d360  	out	0x60
 0199 2120f0	lxi	H, 0xf020
 019c 2207ff	shld	0xff07
 019f 3209ff	sta	0xff09
 01a2 c30005	jmp	0x0500
+
+; Another keyboard status wait loop
 01a5 cd1e02	call	0x021e
-01a8 db70  	in	0x70
+01a8 db70  	in	0x70		; read printer status
 01aa e602  	ani	0x02
-01ac db48  	in	0x48
+01ac db48  	in	0x48		; read keyboard status
 01ae caa501	jz	0x01a5
+
 01b1 3a11ff	lda	0xff11
 01b4 57    	mov	D, A
 01b5 3a0aff	lda	0xff0a
@@ -340,12 +410,13 @@
 01cf 2a07ff	lhld	0xff07
 01d2 23    	inx	H
 01d3 2207ff	shld	0xff07
-01d6 af    	xra	A
+01d6 af    	xra	A		; A <- 0
 01d7 3211ff	sta	0xff11
-01da c32706	jmp	0x0627
+01da c32706	jmp	0x0627		; jump to END of interrupt
+
 01dd cd1e02	call	0x021e
-01e0 db48  	in	0x48
-01e2 db70  	in	0x70
+01e0 db48  	in	0x48		; read keyboard status (pointless)
+01e2 db70  	in	0x70		; read printer status
 01e4 e604  	ani	0x04
 01e6 cadd01	jz	0x01dd
 01e9 3a0bff	lda	0xff0b
@@ -361,8 +432,9 @@
 01fb eb    	xchg			; hl <--> de
 01fc 2207ff	shld	0xff07
 01ff fe0d  	cpi	0x0d
-0201 ca2706	jz	0x0627
-0204 db48  	in	0x48
+0201 ca2706	jz	0x0627		; jump to END of interrupt
+
+0204 db48  	in	0x48		; read keyboard status (pointless)
 0206 7b    	mov	A, E
 0207 d358  	out	0x58
 0209 7a    	mov	A, D
@@ -374,8 +446,11 @@
 0214 2a0fff	lhld	0xff0f
 0217 19    	dad	D		; hl += de
 0218 220fff	shld	0xff0f
-021b c32706	jmp	0x0627
-021e db70  	in	0x70
+021b c32706	jmp	0x0627		; jump to END of interrupt
+
+; subroutine
+
+021e db70  	in	0x70		; read printer status
 0220 1f    	rar			; rotate right thru carry
 0221 da2a02	jc	0x022a
 0224 e610  	ani	0x10
@@ -383,17 +458,17 @@
 0229 c9    	ret
 
 022a f1    	pop	PSW
-022b c35703	jmp	0x0357
+022b c35703	jmp	0x0357		; display "printer not ready"
 
 022e 3e3d  	mvi	A, 0x3d
 0230 d358  	out	0x58
 0232 3e80  	mvi	A, 0x80
 0234 d360  	out	0x60
-0236 af    	xra	A
+0236 af    	xra	A		; A <- 0
 0237 d360  	out	0x60
 0239 cd1e02	call	0x021e
-023c db48  	in	0x48
-023e db70  	in	0x70
+023c db48  	in	0x48		; read keyboard status (pointless)
+023e db70  	in	0x70		; read printer status
 0240 e608  	ani	0x08
 0242 ca3902	jz	0x0239
 0245 3e2f  	mvi	A, 0x2f
@@ -409,7 +484,7 @@
 0253 d360  	out	0x60
 0255 cd8e02	call	0x028e
 0258 e608  	ani	0x08
-025a ca2706	jz	0x0627
+025a ca2706	jz	0x0627		; jump to END of interrupt
 025d 2a07ff	lhld	0xff07
 0260 7e    	mov	A, M
 0261 fe0a  	cpi	0x0a
@@ -427,12 +502,13 @@
 027e d358  	out	0x58
 0280 3e80  	mvi	A, 0x80
 0282 d360  	out	0x60
-0284 af    	xra	A
+0284 af    	xra	A		; A <- 0
 0285 d360  	out	0x60
 0287 23    	inx	H
 0288 2207ff	shld	0xff07
-028b c32706	jmp	0x0627
-028e db70  	in	0x70
+028b c32706	jmp	0x0627		; jump to END of interrupt
+
+028e db70  	in	0x70		; read printer status
 0290 1f    	rar			; rotate right thru carry
 0291 da9902	jc	0x0299
 0294 1f    	rar			; rotate right thru carry
@@ -440,7 +516,7 @@
 0298 c9    	ret
 
 0299 c1    	pop	B
-029a c35703	jmp	0x0357
+029a c35703	jmp	0x0357		; display "printer not ready"
 
 ; jump here from far below
 029d cd8e02	call	0x028e
@@ -448,9 +524,9 @@
 02a2 d358  	out	0x58
 02a4 3e80  	mvi	A, 0x80
 02a6 d360  	out	0x60
-02a8 af    	xra	A
+02a8 af    	xra	A		; A <- 0
 02a9 d360  	out	0x60
-02ab af    	xra	A
+02ab af    	xra	A		; A <- 0
 02ac c39901	jmp	0x0199
 
 ; jump here from far below
@@ -470,7 +546,7 @@
 02c9 1100c0	lxi	D, 0xc000	; display ram
 
 ; loop for entire screen
-02cc db48  	in	0x48		; A <- port-48
+02cc db48  	in	0x48		; read keyboard status (pointless)
 02ce 1a    	ldax	D		; A <- (DE)
 02cf e67f  	ani	0x7f
 02d1 fe00  	cpi	0x00
@@ -514,7 +590,7 @@
 031e 3a09ff	lda	0xff09
 0321 1f    	rar			; rotate right thru carry
 0322 d24503	jnc	0x0345
-0325 db70  	in	0x70
+0325 db70  	in	0x70		; read printer status
 0327 e610  	ani	0x10
 0329 c44d02	cnz	0x024d
 032c cce100	cz	0x00e1
@@ -522,7 +598,7 @@
 
 0332 3e10  	mvi	A, 0x10
 0334 d360  	out	0x60
-0336 af    	xra	A
+0336 af    	xra	A		; A <- 0
 0337 d360  	out	0x60
 0339 3209ff	sta	0xff09
 033c 2120f0	lxi	H, 0xf020
@@ -536,20 +612,20 @@
 034f 0d    	dcr	C
 0350 c2cc02	jnz	0x02cc		; END of screen loop
 
-0353 c32706	jmp	0x0627
+0353 c32706	jmp	0x0627		; jump to END of interrupt
 
 ; no path here
 0356 ff    	rst	7
 
 ; several jumps (2) to here.
 
-; print message "PRINTER NOT READY"
+; display message "PRINTER NOT READY"
 0357 01bc07	lxi	B, 0x07bc	; message (text)
 035a cd9d07	call	0x079d		; display the message
 035d 3e01  	mvi	A, 0x01
-035f d350  	out	0x50
+035f d350  	out	0x50		; clear kb_555
 0361 320eff	sta	0xff0e
-0364 c32706	jmp	0x0627
+0364 c32706	jmp	0x0627		; jump to END of interrupt
 
 ; RST-5 handler
 0367 3e61  	mvi	A, 0x61
@@ -586,24 +662,30 @@
 03ad 0a    	ldax	B
 03ae cde403	call	0x03e4
 03b1 c39903	jmp	0x0399
+
+; loop waiting on 0x78 (host wait)
 03b4 db78  	in	0x78
-03b6 1f    	rar			; rotate right thru carry
-03b7 d42c07	cnc	0x072c
+03b6 1f    	rar			; move low bit into carry
+03b7 d42c07	cnc	0x072c		; call "dog_click"
 03ba d2b403	jnc	0x03b4
-03bd cd1800	call	0x0018
+03bd cd1800	call	0x0018		; call "dog_reset"
+
 03c0 db68  	in	0x68
 03c2 e63f  	ani	0x3f
 03c4 320bff	sta	0xff0b
 03c7 c32606	jmp	0x0626
+
+; loop waiting on 0x78 (host wait)
 03ca db78  	in	0x78
-03cc 1f    	rar			; rotate right thru carry
-03cd d42c07	cnc	0x072c
+03cc 1f    	rar			; move low bit into carry
+03cd d42c07	cnc	0x072c		; call "dog_click"
 03d0 d2ca03	jnc	0x03ca
-03d3 cd1800	call	0x0018
+03d3 cd1800	call	0x0018		; call "dog_reset"
+
 03d6 db68  	in	0x68
 03d8 e67f  	ani	0x7f
 03da 320aff	sta	0xff0a
-03dd af    	xra	A
+03dd af    	xra	A		; A <- 0
 03de 3211ff	sta	0xff11
 03e1 c32606	jmp	0x0626
 03e4 2a07ff	lhld	0xff07
@@ -629,7 +711,7 @@
 040a c21104	jnz	0x0411
 040d 3e02  	mvi	A, 0x02
 040f d378  	out	0x78
-0411 db48  	in	0x48
+0411 db48  	in	0x48		; read keyboard status (pointless)
 0413 3e40  	mvi	A, 0x40
 0415 d378  	out	0x78
 0417 c32606	jmp	0x0626
@@ -651,6 +733,10 @@
 0432 7e    	mov	A, M
 0433 f680  	ori	0x80
 0435 77    	mov	M, A
+
+; many places jump to here as some kind of loop
+; call this "Xrepeat"
+
 0436 2afaff	lhld	0xfffa
 0439 7d    	mov	A, L
 043a feee  	cpi	0xee
@@ -674,6 +760,7 @@
 0455 1f    	rar			; rotate right thru carry
 0456 c9    	ret
 
+; subroutine (called from just below)
 0457 feb6  	cpi	0xb6
 0459 c25f04	jnz	0x045f
 045c 16    	dcr	D
@@ -701,9 +788,11 @@
 0485 ca9104	jz	0x0491
 0488 cd5704	call	0x0457
 048b ca2704	jz	0x0427
-048e c33604	jmp	0x0436
+048e c33604	jmp	0x0436		; jump to "Xrepeat"
+
 0491 cd4305	call	0x0543
-0494 c33604	jmp	0x0436
+0494 c33604	jmp	0x0436		; jump to "Xrepeat"
+
 0497 7b    	mov	A, E
 0498 17    	ral			; rotate left thru carry
 0499 da6205	jc	0x0562
@@ -715,7 +804,7 @@
 04a6 6a    	mov	L, D
 04a7 d5    	push	D
 04a8 3a02ff	lda	0xff02
-04ab cdaf07	call	0x07af
+04ab cdaf07	call	0x07af		; HL *= 40
 04ae 1f    	rar			; rotate right thru carry
 04af dcba07	cc	0x07ba
 04b2 eb    	xchg			; hl <--> de
@@ -726,24 +815,28 @@
 04b9 eb    	xchg			; hl <--> de
 04ba 2afcff	lhld	0xfffc
 04bd eb    	xchg			; hl <--> de
-04be 71    	mov	M, C
+
+04be 71    	mov	M, C		; loop
 04bf 23    	inx	H
 04c0 1d    	dcr	E
 04c1 c2be04	jnz	0x04be
-04c4 c33604	jmp	0x0436
+04c4 c33604	jmp	0x0436		; jump to "Xrepeat"
+
 04c7 3e04  	mvi	A, 0x04
-04c9 d350  	out	0x50
-04cb c33604	jmp	0x0436
+04c9 d350  	out	0x50		; clear kb_555
+04cb c33604	jmp	0x0436		; jump to "Xrepeat"
+
 04ce 3e01  	mvi	A, 0x01
-04d0 d350  	out	0x50
-04d2 c33604	jmp	0x0436
+04d0 d350  	out	0x50		; clear kb_555
+04d2 c33604	jmp	0x0436		; jump to "Xrepeat"
+
 04d5 cd2407	call	0x0724
 04d8 7b    	mov	A, E
 04d9 e63f  	ani	0x3f
 04db 210000	lxi	H, 0x0000
 04de 6f    	mov	L, A
 04df 3a02ff	lda	0xff02
-04e2 cdaf07	call	0x07af
+04e2 cdaf07	call	0x07af		; HL *= 40
 04e5 1f    	rar			; rotate right thru carry
 04e6 dcba07	cc	0x07ba
 04e9 0100c0	lxi	B, 0xc000	; display ram
@@ -754,57 +847,73 @@
 04f0 2afcff	lhld	0xfffc
 04f3 eb    	xchg			; hl <--> de
 04f4 19    	dad	D		; hl += de
-04f5 0a    	ldax	B
+
+04f5 0a    	ldax	B		; loop
 04f6 77    	mov	M, A
 04f7 23    	inx	H
 04f8 03    	inx	B
 04f9 1d    	dcr	E
 04fa c2f504	jnz	0x04f5
-04fd c33604	jmp	0x0436
-0500 3a03ff	lda	0xff03
-0503 1f    	rar			; rotate right thru carry
-0504 d22706	jnc	0x0627
-0507 cd8f07	call	0x078f
+04fd c33604	jmp	0x0436		; jump to "Xrepeat"
+
+; jump to here from 01a2
+
+; xx_flag is always 1, so it always falls thru
+0500 3a03ff	lda	0xff03		; get "xx_flag"
+0503 1f    	rar			; move low bit into carry
+0504 d22706	jnc	0x0627		; jump to END of interrupt
+
+0507 cd8f07	call	0x078f		; call "host_check"
 050a 3e90  	mvi	A, 0x90
 050c d378  	out	0x78
 050e 3eaa  	mvi	A, 0xaa
 0510 d370  	out	0x70
 0512 3eff  	mvi	A, 0xff
 0514 d368  	out	0x68
-0516 c32706	jmp	0x0627
+0516 c32706	jmp	0x0627		; jump to END of interrupt
+
 0519 cd2407	call	0x0724
 051c 1100c0	lxi	D, 0xc000	; display ram
 051f 3a02ff	lda	0xff02
 0522 1f    	rar			; rotate right thru carry
 0523 da2f05	jc	0x052f
-0526 212800	lxi	H, 0x0028
+0526 212800	lxi	H, 0x0028	; 40 chars in line
 0529 0148fe	lxi	B, 0xfe48
 052c c33505	jmp	0x0535
-052f 215000	lxi	H, 0x0050
+052f 215000	lxi	H, 0x0050	; 80 chars in line
 0532 01d0f8	lxi	B, 0xf8d0
 0535 19    	dad	D		; hl += de
-0536 7e    	mov	A, M
+
+0536 7e    	mov	A, M		; loop
 0537 12    	stax	D
-0538 23    	inx	H
-0539 13    	inx	D
-053a 03    	inx	B
+0538 23    	inx	H		; HL++
+0539 13    	inx	D		; DE++
+053a 03    	inx	B		; BC++
 053b 78    	mov	A, B
 053c b7    	ora	A
 053d c23605	jnz	0x0536
-0540 c33604	jmp	0x0436
+0540 c33604	jmp	0x0436		; jump to "Xrepeat"
+
+; subroutine, called from 2 places
+; first with B = 0x7f
 0543 2100c0	lxi	H, 0xc000	; display ram
 0546 11fff7	lxi	D, 0xf7ff
+
+; loop - goes 8 * 256 times (2K)
 0549 7e    	mov	A, M
 054a a0    	ana	B
 054b 77    	mov	M, A
-054c 23    	inx	H
-054d 13    	inx	D
+054c 23    	inx	H		; HL++
+054d 13    	inx	D		; DE++
 054e 7a    	mov	A, D
 054f fe00  	cpi	0x00
 0551 c24905	jnz	0x0549
-0554 78    	mov	A, B
-0555 fe00  	cpi	0x00
+
+0554 78    	mov	A, B		; A <-- B
+0555 fe00  	cpi	0x00		; == 0 ?
 0557 c0    	rnz			; return if NZ
+
+; 0x50 is 80
 0558 2150c0	lxi	H, 0xc050
 055b 3e80  	mvi	A, 0x80
 055d 77    	mov	M, A
@@ -812,10 +921,19 @@
 0561 c9    	ret
 
 0562 3e02  	mvi	A, 0x02
-0564 d350  	out	0x50
-0566 af    	xra	A
-0567 3206ff	sta	0xff06
-056a 320eff	sta	0xff0e
+0564 d350  	out	0x50		; clear kb_555
+
+; Note that "xra A" is an idiom for clearing A.
+; an XOR of A with itself will always be zero
+; Also as a side note, this is the only use made of
+;  the xra instruction in this ROM.
+
+; So what the heck is this "kb_flag" in 0xff06
+; only the low bit is ever used.
+0566 af    	xra	A		; A <- 0
+0567 3206ff	sta	0xff06		; clear kb_flag
+056a 320eff	sta	0xff0e		; clear this too
+
 056d cd2407	call	0x0724
 0570 210000	lxi	H, 0x0000
 0573 7a    	mov	A, D
@@ -823,7 +941,7 @@
 0576 6f    	mov	L, A
 0577 d5    	push	D
 0578 3a02ff	lda	0xff02
-057b cdaf07	call	0x07af
+057b cdaf07	call	0x07af		; HL *= 40
 057e 1f    	rar			; rotate right thru carry
 057f dcba07	cc	0x07ba
 0582 eb    	xchg			; hl <--> de
@@ -840,7 +958,8 @@
 0592 7e    	mov	A, M
 0593 f680  	ori	0x80
 0595 77    	mov	M, A
-0596 c33604	jmp	0x0436
+0596 c33604	jmp	0x0436		; jump to "Xrepeat"
+
 0599 2a04ff	lhld	0xff04
 059c 56    	mov	D, M
 059d 23    	inx	H
@@ -853,11 +972,12 @@
 05ab 2204ff	shld	0xff04
 05ae ba    	cmp	D
 05af c4b505	cnz	0x05b5
-05b2 c33604	jmp	0x0436
-05b5 3e01  	mvi	A, 0x01
-05b7 d350  	out	0x50
-05b9 f3    	di
-05ba 3206ff	sta	0xff06
+05b2 c33604	jmp	0x0436		; jump to "Xrepeat"
+
+05b5 3e01  	mvi	A, 0x01		; A <- 0x01
+05b7 d350  	out	0x50		; clear kb_555
+05b9 f3    	di			; ** disable interrupts
+05ba 3206ff	sta	0xff06		; set kb_flag
 
 ; print message "XMISSION ERROR"
 05bd 01ce07	lxi	B, 0x07ce
@@ -886,11 +1006,14 @@
 05e5 d2ff05	jnc	0x05ff
 05e8 17    	ral			; rotate left thru carry
 05e9 d2ff05	jnc	0x05ff
+
+; loop waiting on 0x78 (host wait)
 05ec db78  	in	0x78
 05ee 1f    	rar			; rotate right thru carry
-05ef d42c07	cnc	0x072c
+05ef d42c07	cnc	0x072c		; call "dog_click"
 05f2 d2ec05	jnc	0x05ec
-05f5 cd1800	call	0x0018
+05f5 cd1800	call	0x0018		; call "dog_reset"
+
 05f8 3e40  	mvi	A, 0x40
 05fa d378  	out	0x78
 05fc db68  	in	0x68
@@ -920,6 +1043,7 @@
 0626 fb    	ei
 
 ; Lots of code comes here when finished
+; this is an "end of interrupt" routine
 
 0627 e1    	pop	H
 0628 d1    	pop	D
@@ -933,99 +1057,153 @@
 0631 fec0  	cpi	0xc0
 0633 ca3c06	jz	0x063c
 0636 fb    	ei
-0637 db48  	in	0x48
+0637 db48  	in	0x48		; read keyboard status (pointless)
 0639 c34806	jmp	0x0648
 
+; loop waiting on 0x78 (host wait)
 063c db78  	in	0x78
 063e 1f    	rar			; rotate right thru carry
-063f d42c07	cnc	0x072c
+063f d42c07	cnc	0x072c		; call "dog_click"
 0642 d23c06	jnc	0x063c
-0645 cd1800	call	0x0018
+0645 cd1800	call	0x0018		; call "dog_reset"
+
 0648 3e40  	mvi	A, 0x40
 064a d378  	out	0x78
 064c 2af8ff	lhld	0xfff8
 064f c31d06	jmp	0x061d
 
+; KEYBOARD input -----
+
+; We come here when we get a keyboard interrupt or if
+; the main loop detects keyboard data (why both?  Some kind of
+; belt and suspenders double checking?)
+;
 ; Keyboard input handler
 ; (RST-4)
-0652 db50  	in	0x50
-0654 57    	mov	D, A
-0655 3e9b  	mvi	A, 0x9b
+;
+; The following read is the ONLY place we read keyboard data!!
+
+0652 db50  	in	0x50		; read keyboard data
+0654 57    	mov	D, A		; D <- A
+0655 3e9b  	mvi	A, 0x9b		; ESC with parity bit
 0657 ba    	cmp	D
 0658 ca4407	jz	0x0744
-065b 3a06ff	lda	0xff06
-065e 1f    	rar			; rotate right thru carry
-065f da2706	jc	0x0627
-0662 db48  	in	0x48
-0664 e607  	ani	0x07
+
+; check kb_flag, bail out if it is set
+065b 3a06ff	lda	0xff06		; get kb_flag
+065e 1f    	rar			; check low bit
+065f da2706	jc	0x0627		; END of interrupt
+
+0662 db48  	in	0x48		; read keyboard status
+0664 e607  	ani	0x07		; get lower 3 bits
 0666 c28706	jnz	0x0687
-0669 1eff  	mvi	E, 0xff
-066b 0e90  	mvi	C, 0x90
-066d cd8f07	call	0x078f
-0670 79    	mov	A, C
+
+; lower 3 bits are clear
+0669 1eff  	mvi	E, 0xff		; E <- 0xff
+066b 0e90  	mvi	C, 0x90		; C <- 0x90
+066d cd8f07	call	0x078f		; call "host_check"
+
+0670 79    	mov	A, C		; A <- C i.e. 0x90
 0671 d378  	out	0x78
-0673 cd8f07	call	0x078f
-0676 7a    	mov	A, D
-0677 d370  	out	0x70
-0679 3a03ff	lda	0xff03
-067c 1f    	rar			; rotate right thru carry
+0673 cd8f07	call	0x078f		; call "host_check"
+
+0676 7a    	mov	A, D		; A <- D (original kb data)
+0677 d370  	out	0x70		; send to host
+
+; xx_flag is always 1, so this always jumps to 06f3
+0679 3a03ff	lda	0xff03		; get "xx_flag"
+067c 1f    	rar			; get low bit
 067d daf306	jc	0x06f3
-0680 7b    	mov	A, E
+
+0680 7b    	mov	A, E		; A <- E i.e. 0xff
 0681 d368  	out	0x68
 0683 fb    	ei
-0684 c32706	jmp	0x0627
-0687 5a    	mov	E, D
+0684 c32706	jmp	0x0627		; END of interrupt
+
+; -------------------------
+; Here if the lower 3 bits of keyboard status are non-zero
+; "A" will hold the low 3 "status bits"
+; note that the "mov" instruction does not affect CC bits
+
+0687 5a    	mov	E, D		; E <- D (original kb data)
 0688 fe02  	cpi	0x02
 068a c2d306	jnz	0x06d3
-068d 16    	dcr	D
-068e 84    	add	H
-068f 3edf  	mvi	A, 0xdf
-0691 a3    	ana	E
-0692 fe54  	cpi	0x54
+
+; fall through when "status" == 0x2 == 010
+068d 16    	dcr	D		; D-- (keyboard data)
+068e 84    	add	H		; A += H (pointless)
+068f 3edf  	mvi	A, 0xdf		; A <- 0xdf  1101_1111
+0691 a3    	ana	E		; A &= E
+
+; the above clearing of bit 0x20 forces upper case.
+
+0692 fe54  	cpi	0x54		; 'T'
 0694 cab706	jz	0x06b7
-0697 fe58  	cpi	0x58
+0697 fe58  	cpi	0x58		; 'X'
 0699 c29d06	jnz	0x069d
-069c ff    	rst	7
-069d fe53  	cpi	0x53
+
+069c ff    	rst	7		; hard reboot on 'X' !!
+
+069d fe53  	cpi	0x53		; 'S'
 069f cac706	jz	0x06c7
-06a2 fe50  	cpi	0x50
+06a2 fe50  	cpi	0x50		; 'P'
 06a4 caaf02	jz	0x02af
-06a7 fe44  	cpi	0x44
-06a9 c2ee06	jnz	0x06ee
+06a7 fe44  	cpi	0x44		; 'D'
+06a9 c2ee06	jnz	0x06ee		; jump to kb_done
+
 06ac 3a0008	lda	0x0800
 06af feff  	cpi	0xff
 06b1 c20008	jnz	0x0800
-06b4 c3ee06	jmp	0x06ee
-06b7 211ff0	lxi	H, 0xf01f
-06ba 2207ff	shld	0xff07
-06bd db70  	in	0x70
+06b4 c3ee06	jmp	0x06ee		; jump to kb_done
+
+; Here on 'T'
+06b7 211ff0	lxi	H, 0xf01f	; HL <- 0xf01f
+06ba 2207ff	shld	0xff07		; store HL to 0xff07...
+06bd db70  	in	0x70		; read printer status
 06bf e610  	ani	0x10
 06c1 caa501	jz	0x01a5
 06c4 c37802	jmp	0x0278
-06c7 db70  	in	0x70
+
+; Here on 'S'
+06c7 db70  	in	0x70		; read printer status
 06c9 e610  	ani	0x10
 06cb ca7201	jz	0x0172
 06ce 3e0a  	mvi	A, 0x0a
 06d0 c39d02	jmp	0x029d
 
+; ---------------
+; here when status is not 0x2
+
 06d3 fe03  	cpi	0x03
 06d5 c2dd06	jnz	0x06dd
+
+; fall through when "status" == 0x3 == 011
 06d8 16    	dcr	D
 06d9 86    	add	M
-06da c3ee06	jmp	0x06ee
+06da c3ee06	jmp	0x06ee		; jump to kb_done
+
 06dd fe06  	cpi	0x06
 06df c2e706	jnz	0x06e7
+
+; fall through when "status" == 0x6 == 110
 06e2 16    	dcr	D
 06e3 85    	add	L
-06e4 c3ee06	jmp	0x06ee
+06e4 c3ee06	jmp	0x06ee		; jump to kb_done
+
 06e7 fe05  	cpi	0x05
 06e9 c26906	jnz	0x0669
+
+; fall through when "status == 0x5 == 101
 06ec 16    	dcr	D
 06ed 82    	add	D
+
+; many places come here including 'D'
+;  "kb_done"
 06ee 0e10  	mvi	C, 0x10
-06f0 c36d06	jmp	0x066d
+06f0 c36d06	jmp	0x066d		; branch up to do "host check" business and return
+
 06f3 fb    	ei
-06f4 db48  	in	0x48
+06f4 db48  	in	0x48		; read keyboard status (pointless)
 06f6 db78  	in	0x78
 06f8 e606  	ani	0x06
 06fa ca0a07	jz	0x070a
@@ -1036,6 +1214,7 @@
 0703 c41a04	cnz	0x041a
 0706 d1    	pop	D
 0707 c3f306	jmp	0x06f3
+
 070a 7b    	mov	A, E
 070b d368  	out	0x68
 070d 2a0cff	lhld	0xff0c
@@ -1048,30 +1227,42 @@
 0719 feff  	cpi	0xff
 071b c28107	jnz	0x0781
 071e 220cff	shld	0xff0c
-0721 c32706	jmp	0x0627
+0721 c32706	jmp	0x0627		; jump to END of interrupt
+
+; subroutine
 0724 2a00ff	lhld	0xff00
 0727 7e    	mov	A, M
 0728 e67f  	ani	0x7f
 072a 77    	mov	M, A
 072b c9    	ret
 
+; subroutine to increment the value stored
+; at 0xff12 if it overflows, so a hard reset
+; This sort of acts as a watchdog.
+;
+; call this "dog_click"
+
 072c f5    	push	PSW
 072d e5    	push	H
-072e db48  	in	0x48
-0730 2a12ff	lhld	0xff12
+072e db48  	in	0x48		; read keyboard status (why?)
+0730 2a12ff	lhld	0xff12		; HL <- 0xff12
 0733 2c    	inr	L
 0734 c23e07	jnz	0x073e
 0737 24    	inr	H
 0738 c23e07	jnz	0x073e
-073b c30000	jmp	0x0000
-073e 2212ff	shld	0xff12
+073b c30000	jmp	0x0000		; jmp to zero (hard reset)
+073e 2212ff	shld	0xff12		; HL -> 0xff12
 0741 e1    	pop	H
 0742 f1    	pop	PSW
 0743 c9    	ret
 
-0744 3a06ff	lda	0xff06
-0747 1f    	rar			; rotate right thru carry
+; subroutine - we jump here when we see 0x9b (ESC with parity)
+; on the keyboard.
+
+0744 3a06ff	lda	0xff06		; get kb_flag
+0747 1f    	rar			; check low bit
 0748 d25807	jnc	0x0758
+
 074b fb    	ei
 074c 2114ff	lxi	H, 0xff14
 074f 220cff	shld	0xff0c
@@ -1081,19 +1272,19 @@
 075b 1f    	rar			; rotate right thru carry
 075c d26206	jnc	0x0662
 075f 3e02  	mvi	A, 0x02
-0761 d350  	out	0x50
+0761 d350  	out	0x50		; clear kb_555
 0763 d5    	push	D
 0764 1100c0	lxi	D, 0xc000	; display ram
 0767 2afcff	lhld	0xfffc
 076a 4d    	mov	C, L
 076b 19    	dad	D		; hl += de
-076c af    	xra	A
+076c af    	xra	A		; A <- 0
 076d 77    	mov	M, A
 076e 23    	inx	H
 076f 0d    	dcr	C
 0770 c26d07	jnz	0x076d
 0773 d1    	pop	D
-0774 3206ff	sta	0xff06
+0774 3206ff	sta	0xff06		; set kb_flag
 0777 320eff	sta	0xff0e
 077a c36206	jmp	0x0662
 077d 2114ff	lxi	H, 0xff14
@@ -1105,12 +1296,18 @@
 0784 fe20  	cpi	0x20
 0786 cc7d07	cz	0x077d
 0789 220cff	shld	0xff0c
-078c c32706	jmp	0x0627
+078c c32706	jmp	0x0627		; jump to END of interrupt
+
+; subroutine during keyboard processing
+; the usual loop on 0x78, encapsulated in a subroutine
+; call this "host_check"
+
 078f db78  	in	0x78
 0791 e606  	ani	0x06
-0793 c42c07	cnz	0x072c
+0793 c42c07	cnz	0x072c		; call "dog_click"
 0796 c28f07	jnz	0x078f
-0799 cd1800	call	0x0018
+0799 cd1800	call	0x0018		; call "dog_reset"
+
 079c c9    	ret
 
 ; Display message
@@ -1131,15 +1328,18 @@
 
 07ae c9    	ret
 
+; multiply HL by 40
+; "dad" is the double add instruction.
+; it adds some 16 bit quantity to HL.
 07af d5    	push	D
-07b0 29    	dad	H		; hl += hl
-07b1 29    	dad	H		; hl += hl
-07b2 29    	dad	H		; hl += hl
+07b0 29    	dad	H		; hl += hl  (2x)
+07b1 29    	dad	H		; hl += hl  (4x)
+07b2 29    	dad	H		; hl += hl  (8x)
 07b3 54    	mov	D, H
 07b4 5d    	mov	E, L
-07b5 29    	dad	H		; hl += hl
-07b6 29    	dad	H		; hl += hl
-07b7 19    	dad	D		; hl += de
+07b5 29    	dad	H		; hl += hl  (16x)
+07b6 29    	dad	H		; hl += hl  (32x)
+07b7 19    	dad	D		; hl += de  (32x+8x)
 07b8 d1    	pop	D
 07b9 c9    	ret
 
