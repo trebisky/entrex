@@ -21,7 +21,7 @@
 ; each chip is 256 x 4 bits, so a pair is 256 bytes.
 ; There are 3 pairs on the board.
 ; No doubt 2 pairs are video ram (512 bytes)
-; The other pair must be for the stack and may be
+; The other pair must be for the stack and seems to be
 ; at 0xff00 to 0xffff.
 ; We see variables at ff00 to ff22
 ; We see variables at fff8 to fffd
@@ -35,7 +35,10 @@
 ;  We won't talk about this mode any more since we don't have this.
 ;
 ; Display memory seems to be at 0xc000, but there is something
-; at 0xf000 that get cleared at start up.
+; at 0xf000 that gets cleared at start up.
+; Also note that there are a few address references to addresses
+;  of the form 0xf0xx.  Only 3 actually:
+;  f01f f020 f0a4
 ;
 ;
 ; The 8080 begins running at address 0 when it comes out of reset,
@@ -90,6 +93,10 @@
 ;  D and E are 8 bit registers than are sometimes a 16 bit pair
 ;  H and L are 8 bit registers than are sometimes a 16 bit pair
 ;
+; now - what exactly is "M"
+;  it seems to be the byte in the memory location pointed to
+;  by HL.
+;
 ; shld and lhld instructions store and load HL to/from memory
 ;  They move 16 bits to/from the HL register to a
 ;  memory address given by 2 bytes in the instruction
@@ -111,6 +118,28 @@
 ;  rar or rlc if the point is to test the high or low bit).
 ;  I never see rar or rlc being used in this code.
 ;
+; ----------------------------------
+; Some notes on the interface board ports.
+;
+;  in 0x68 reads from UC3 and gets 4 bits on D7, D6, D5, D4
+;	I call this host_info
+;  in 0x70 is the printer
+;  in 0x78 reads from UE4 (8T97) and gets 5 bits
+;	3 bits up high (D7, D6, D5)
+;	2 bits low  (D1, D0)
+;	I call this (for now anyway) host_data
+;
+;  out 0x78 writes to all kinds of logic and flip flops
+;	I call this host_ctl (many writes)
+;  out 0x70 - I call this host_beta (2 writes)
+;	- one case writes 0xaa
+;	- the other writes 8 bits of keyboard data
+;  out 0x68 - I call this host_alpha (3 writes)
+;	- usually 0xff, but I don't think data matters
+
+;  out 0x60 printer
+;  out 0x58 printer
+
 ; ----------------------------------
 
 ; Reset starts here.
@@ -168,8 +197,9 @@
 002f 00    	nop
 
 ; rst-6 -- from interface board to host
+; why the heck does is push PSW twice ??
 0030 f5    	push	PSW
-0031 db78  	in	0x78
+0031 db78  	in	0x78		; host data
 0033 f5    	push	PSW
 0034 c3c405	jmp	0x05c4
 0037 00    	nop
@@ -186,13 +216,16 @@
 ; Main code begins here
 
 0040 3e06  	mvi	A, 0x06
-0042 d378  	out	0x78
-0044 2100f0	lxi	H, 0xf000
+0042 d378  	out	0x78		; host_ctl
+
+0044 2100f0	lxi	H, 0xf000	; HL <- 0xf000
 0047 0600  	mvi	B, 0x00
 
-; This looks like a loop to clear the display, but ....
-; it only covers 256 bytes, and it writes to base
-; address 0xf000.  Mysterious.
+; What is going on here?
+; We write zeros from 0xf000 all the way to 0xffff
+;  as near as I can tell.
+; This will clear ram, and a bunch of other territory
+; as well.
 
 0049 70    	mov	M, B		; (HL) <- 0
 004a 23    	inx	H		; HL++
@@ -205,7 +238,7 @@
 0050 2114ff	lxi	H, 0xff14
 0053 2204ff	shld	0xff04
 0056 220cff	shld	0xff0c
-0059 2120f0	lxi	H, 0xf020
+0059 2120f0	lxi	H, 0xf020	; zulu
 005c 2207ff	shld	0xff07
 005f 214206	lxi	H, 0x0642
 0062 220aff	shld	0xff0a
@@ -213,7 +246,7 @@
 0068 22faff	shld	0xfffa
 006b 22f8ff	shld	0xfff8
 
-006e db78  	in	0x78
+006e db78  	in	0x78		; host data
 0070 e620  	ani	0x20
 0072 c27a00	jnz	0x007a
 
@@ -225,9 +258,9 @@
 0077 3203ff	sta	0xff03		; set xx_flag to 1
 
 007a 3e10  	mvi	A, 0x10
-007c d360  	out	0x60
+007c d360  	out	0x60		; printer
 007e af    	xra	A		; A <- 0
-007f d360  	out	0x60
+007f d360  	out	0x60		; printer
 0081 db40  	in	0x40		; on RAM expansion board
 0083 17    	ral			; get high bit
 0084 d28900	jnc	0x0089
@@ -280,8 +313,8 @@
 00d5 da9400	jc	0x0094
 
 00d8 3e40  	mvi	A, 0x40
-00da d378  	out	0x78
-00dc db68  	in	0x68
+00da d378  	out	0x78		; host_ctl
+00dc db68  	in	0x68		; host_info
 00de c39400	jmp	0x0094		; loop to top ^^^
 
 ; subroutine (2 calls)
@@ -302,17 +335,17 @@
 00fd cd1e02	call	0x021e
 0100 db70  	in	0x70		; read printer status
 0102 e608  	ani	0x08
-0104 ca2706	jz	0x0627		; jump to END of interrupt
+0104 ca2706	jz	0x0627		; eoi1
 0107 7e    	mov	A, M
 0108 feb8  	cpi	0xb8
 010a cc4a02	cz	0x024a
 010d feb6  	cpi	0xb6
 010f ca2e02	jz	0x022e
-0112 d358  	out	0x58
+0112 d358  	out	0x58		; printer
 0114 3e80  	mvi	A, 0x80
-0116 d360  	out	0x60
+0116 d360  	out	0x60		; printer
 0118 af    	xra	A		; A <- 0
-0119 d360  	out	0x60
+0119 d360  	out	0x60		; printer
 011b 23    	inx	H
 011c 2207ff	shld	0xff07
 011f cd1e02	call	0x021e
@@ -328,32 +361,32 @@
 0134 19    	dad	D		; hl += de
 0135 220fff	shld	0xff0f
 0138 7b    	mov	A, E
-0139 d358  	out	0x58
+0139 d358  	out	0x58		; printer
 013b 3e40  	mvi	A, 0x40
-013d d360  	out	0x60
+013d d360  	out	0x60		; printer
 013f af    	xra	A		; A <- 0
-0140 d360  	out	0x60
-0142 c32706	jmp	0x0627		; jump to END of interrupt
+0140 d360  	out	0x60		; printer
+0142 c32706	jmp	0x0627		; eoi1
 0145 cd1e02	call	0x021e
 0148 db70  	in	0x70		; read printer status
 014a e604  	ani	0x04
-014c ca2706	jz	0x0627		; jump to END of interrupt
+014c ca2706	jz	0x0627		; eoi1
 014f 2a07ff	lhld	0xff07
 0152 23    	inx	H
 0153 2207ff	shld	0xff07
 0156 2a0fff	lhld	0xff0f
 0159 7d    	mov	A, L
-015a d358  	out	0x58
+015a d358  	out	0x58		; printer
 015c 7c    	mov	A, H
 015d f604  	ori	0x04
-015f d360  	out	0x60
+015f d360  	out	0x60		; printer
 0161 f640  	ori	0x40
-0163 d360  	out	0x60
+0163 d360  	out	0x60		; printer
 0165 e6bf  	ani	0xbf
-0167 d360  	out	0x60
+0167 d360  	out	0x60		; printer
 0169 210000	lxi	H, 0x0000
 016c 220fff	shld	0xff0f
-016f c32706	jmp	0x0627		; jump to END of interrupt
+016f c32706	jmp	0x0627		; eoi1
 
 ; The following looks like a loop waiting for keyboard status
 ; to go non-zero
@@ -372,12 +405,12 @@
 018a af    	xra	A		; A <- 0
 018b 3211ff	sta	0xff11
 018e 3e08  	mvi	A, 0x08
-0190 d358  	out	0x58
+0190 d358  	out	0x58		; printer
 0192 3e20  	mvi	A, 0x20
-0194 d360  	out	0x60
+0194 d360  	out	0x60		; printer
 0196 af    	xra	A		; A <- 0
-0197 d360  	out	0x60
-0199 2120f0	lxi	H, 0xf020
+0197 d360  	out	0x60		; printer
+0199 2120f0	lxi	H, 0xf020	; zulu
 019c 2207ff	shld	0xff07
 019f 3209ff	sta	0xff09
 01a2 c30005	jmp	0x0500
@@ -399,20 +432,20 @@
 01bd 29    	dad	H		; hl += hl
 01be 29    	dad	H		; hl += hl
 01bf 7d    	mov	A, L
-01c0 d358  	out	0x58
+01c0 d358  	out	0x58		; printer
 01c2 7c    	mov	A, H
 01c3 e603  	ani	0x03
-01c5 d360  	out	0x60
+01c5 d360  	out	0x60		; printer
 01c7 f620  	ori	0x20
-01c9 d360  	out	0x60
+01c9 d360  	out	0x60		; printer
 01cb e6df  	ani	0xdf
-01cd d360  	out	0x60
+01cd d360  	out	0x60		; printer
 01cf 2a07ff	lhld	0xff07
 01d2 23    	inx	H
 01d3 2207ff	shld	0xff07
 01d6 af    	xra	A		; A <- 0
 01d7 3211ff	sta	0xff11
-01da c32706	jmp	0x0627		; jump to END of interrupt
+01da c32706	jmp	0x0627		; eoi1
 
 01dd cd1e02	call	0x021e
 01e0 db48  	in	0x48		; read keyboard status (pointless)
@@ -432,21 +465,21 @@
 01fb eb    	xchg			; hl <--> de
 01fc 2207ff	shld	0xff07
 01ff fe0d  	cpi	0x0d
-0201 ca2706	jz	0x0627		; jump to END of interrupt
+0201 ca2706	jz	0x0627		; eoi1
 
 0204 db48  	in	0x48		; read keyboard status (pointless)
 0206 7b    	mov	A, E
-0207 d358  	out	0x58
+0207 d358  	out	0x58		; printer
 0209 7a    	mov	A, D
-020a d360  	out	0x60
+020a d360  	out	0x60		; printer
 020c f640  	ori	0x40
-020e d360  	out	0x60
+020e d360  	out	0x60		; printer
 0210 e6bf  	ani	0xbf
-0212 d360  	out	0x60
+0212 d360  	out	0x60		; printer
 0214 2a0fff	lhld	0xff0f
 0217 19    	dad	D		; hl += de
 0218 220fff	shld	0xff0f
-021b c32706	jmp	0x0627		; jump to END of interrupt
+021b c32706	jmp	0x0627		; eoi1
 
 ; subroutine
 
@@ -461,11 +494,11 @@
 022b c35703	jmp	0x0357		; display "printer not ready"
 
 022e 3e3d  	mvi	A, 0x3d
-0230 d358  	out	0x58
+0230 d358  	out	0x58		; printer
 0232 3e80  	mvi	A, 0x80
-0234 d360  	out	0x60
+0234 d360  	out	0x60		; printer
 0236 af    	xra	A		; A <- 0
-0237 d360  	out	0x60
+0237 d360  	out	0x60		; printer
 0239 cd1e02	call	0x021e
 023c db48  	in	0x48		; read keyboard status (pointless)
 023e db70  	in	0x70		; read printer status
@@ -481,10 +514,10 @@
 024f d5    	push	D
 0250 e5    	push	H
 0251 3e00  	mvi	A, 0x00
-0253 d360  	out	0x60
+0253 d360  	out	0x60		; printer
 0255 cd8e02	call	0x028e
 0258 e608  	ani	0x08
-025a ca2706	jz	0x0627		; jump to END of interrupt
+025a ca2706	jz	0x0627		; eoi1
 025d 2a07ff	lhld	0xff07
 0260 7e    	mov	A, M
 0261 fe0a  	cpi	0x0a
@@ -499,14 +532,14 @@
 0278 cd8e02	call	0x028e
 027b 3e0c  	mvi	A, 0x0c
 027d 2f    	cma
-027e d358  	out	0x58
+027e d358  	out	0x58		; printer
 0280 3e80  	mvi	A, 0x80
-0282 d360  	out	0x60
+0282 d360  	out	0x60		; printer
 0284 af    	xra	A		; A <- 0
-0285 d360  	out	0x60
+0285 d360  	out	0x60		; printer
 0287 23    	inx	H
 0288 2207ff	shld	0xff07
-028b c32706	jmp	0x0627		; jump to END of interrupt
+028b c32706	jmp	0x0627		; eoi1
 
 028e db70  	in	0x70		; read printer status
 0290 1f    	rar			; rotate right thru carry
@@ -521,17 +554,17 @@
 ; jump here from far below
 029d cd8e02	call	0x028e
 02a0 3ef5  	mvi	A, 0xf5
-02a2 d358  	out	0x58
+02a2 d358  	out	0x58		; printer
 02a4 3e80  	mvi	A, 0x80
-02a6 d360  	out	0x60
+02a6 d360  	out	0x60		; printer
 02a8 af    	xra	A		; A <- 0
-02a9 d360  	out	0x60
+02a9 d360  	out	0x60		; printer
 02ab af    	xra	A		; A <- 0
 02ac c39901	jmp	0x0199
 
 ; jump here from far below
 02af 3e05  	mvi	A, 0x05
-02b1 d378  	out	0x78
+02b1 d378  	out	0x78		; host_ctl
 02b3 0628  	mvi	B, 0x28		; B = 40 (line length)
 02b5 0e0c  	mvi	C, 0x0c		; C = 12 (number of lines)
 02b7 3a02ff	lda	0xff02
@@ -540,34 +573,41 @@
 02be 0650  	mvi	B, 0x50		; B = 80 (line length)
 02c0 0e18  	mvi	C, 0x18		; C = 24 (number of lines)
 
-02c2 78    	mov	A, B
+02c2 78    	mov	A, B		; A <- B
 02c3 3222ff	sta	0xff22
-02c6 2120f0	lxi	H, 0xf020
+02c6 2120f0	lxi	H, 0xf020	; zulu
 02c9 1100c0	lxi	D, 0xc000	; display ram
 
 ; loop for entire screen
+; this seems to read display ram (which I didn't think was possible)
+; And writes into "zulu" after performing certain translations.
+
 02cc db48  	in	0x48		; read keyboard status (pointless)
 02ce 1a    	ldax	D		; A <- (DE)
 02cf e67f  	ani	0x7f
 02d1 fe00  	cpi	0x00
 02d3 c2db02	jnz	0x02db
-02d6 3e20  	mvi	A, 0x20
+02d6 3e20  	mvi	A, 0x20		; space
 02d8 c30003	jmp	0x0300
+
 02db fe1d  	cpi	0x1d
 02dd c2e502	jnz	0x02e5
-02e0 3e5f  	mvi	A, 0x5f
+02e0 3e5f  	mvi	A, 0x5f		; underscore
 02e2 c30003	jmp	0x0300
+
 02e5 fe1e  	cpi	0x1e
 02e7 c2ef02	jnz	0x02ef
-02ea 3eb8  	mvi	A, 0xb8
+02ea 3eb8  	mvi	A, 0xb8		; '8'
 02ec c30003	jmp	0x0300
+
 02ef fe1c  	cpi	0x1c
 02f1 c2f902	jnz	0x02f9
-02f4 3eb6  	mvi	A, 0xb6
+02f4 3eb6  	mvi	A, 0xb6		; '6'
 02f6 c30003	jmp	0x0300
+
 02f9 fe1f  	cpi	0x1f
 02fb c20003	jnz	0x0300
-02fe 3e5e  	mvi	A, 0x5e
+02fe 3e5e  	mvi	A, 0x5e		; '^'
 
 0300 77    	mov	M, A		; (HL) <- A
 0301 23    	inx	H		; HL++
@@ -575,10 +615,11 @@
 0303 05    	dcr	B		; B--
 0304 c2cc02	jnz	0x02cc		; END of line loop
 
-0307 360d  	mvi	M, 0x0d
+0307 360d  	mvi	M, 0x0d		; (HL) <- 0x0d
 0309 23    	inx	H
-030a 360a  	mvi	M, 0x0a
-030c 2120f0	lxi	H, 0xf020
+030a 360a  	mvi	M, 0x0a		; (HL) <- 0x0a
+
+030c 2120f0	lxi	H, 0xf020	; zulu
 030f 2207ff	shld	0xff07
 0312 3e01  	mvi	A, 0x01
 0314 3209ff	sta	0xff09
@@ -587,9 +628,11 @@
 0317 3a0eff	lda	0xff0e
 031a 1f    	rar			; rotate right thru carry
 031b da3203	jc	0x0332
+
 031e 3a09ff	lda	0xff09
 0321 1f    	rar			; rotate right thru carry
 0322 d24503	jnc	0x0345
+
 0325 db70  	in	0x70		; read printer status
 0327 e610  	ani	0x10
 0329 c44d02	cnz	0x024d
@@ -597,22 +640,22 @@
 032f c31703	jmp	0x0317
 
 0332 3e10  	mvi	A, 0x10
-0334 d360  	out	0x60
+0334 d360  	out	0x60		; printer
 0336 af    	xra	A		; A <- 0
-0337 d360  	out	0x60
+0337 d360  	out	0x60		; printer
 0339 3209ff	sta	0xff09
-033c 2120f0	lxi	H, 0xf020
+033c 2120f0	lxi	H, 0xf020	; zulu
 033f 2207ff	shld	0xff07
 0342 c36901	jmp	0x0169
 
 0345 3a22ff	lda	0xff22
 0348 47    	mov	B, A
-0349 2120f0	lxi	H, 0xf020
+0349 2120f0	lxi	H, 0xf020	; zulu
 034c 2207ff	shld	0xff07
 034f 0d    	dcr	C
 0350 c2cc02	jnz	0x02cc		; END of screen loop
 
-0353 c32706	jmp	0x0627		; jump to END of interrupt
+0353 c32706	jmp	0x0627		; eoi1
 
 ; no path here
 0356 ff    	rst	7
@@ -625,36 +668,46 @@
 035d 3e01  	mvi	A, 0x01
 035f d350  	out	0x50		; clear kb_555
 0361 320eff	sta	0xff0e
-0364 c32706	jmp	0x0627		; jump to END of interrupt
+0364 c32706	jmp	0x0627		; eoi1
+
+; -----------------------------------------------
 
 ; RST-5 handler
+
+; One of two interrupts from the interface board
+
 0367 3e61  	mvi	A, 0x61
-0369 d378  	out	0x78
-036b db78  	in	0x78
+0369 d378  	out	0x78		; host_ctl
+036b db78  	in	0x78		; host data
 036d e640  	ani	0x40
 036f c2ff03	jnz	0x03ff
-0372 db68  	in	0x68
+0372 db68  	in	0x68		; host_info		; host_info
 0374 57    	mov	D, A
-0375 fe0a  	cpi	0x0a
+0375 fe0a  	cpi	0x0a		; newline ?
 0377 ca8c03	jz	0x038c
-037a fea5  	cpi	0xa5
+037a fea5  	cpi	0xa5		; 1010_0101 '%'
 037c cab403	jz	0x03b4
 037f e6c0  	ani	0xc0
 0381 fec0  	cpi	0xc0
 0383 caca03	jz	0x03ca
 0386 cde403	call	0x03e4
 0389 c30d04	jmp	0x040d
+
+; Here with newline
 038c 2a07ff	lhld	0xff07
 038f 2b    	dcx	H
 0390 7e    	mov	A, M
 0391 fe0d  	cpi	0x0d
 0393 c2a703	jnz	0x03a7
 0396 cde403	call	0x03e4
-0399 2120f0	lxi	H, 0xf020
+
+; jump here from below
+0399 2120f0	lxi	H, 0xf020	; zulu
 039c 2207ff	shld	0xff07
 039f 3e01  	mvi	A, 0x01
 03a1 3209ff	sta	0xff09
-03a4 c32606	jmp	0x0626
+03a4 c32606	jmp	0x0626		; eoi2
+
 03a7 16    	dcr	D
 03a8 0d    	dcr	C
 03a9 cde403	call	0x03e4
@@ -664,57 +717,62 @@
 03b1 c39903	jmp	0x0399
 
 ; loop waiting on 0x78 (host wait)
-03b4 db78  	in	0x78
+03b4 db78  	in	0x78		; host data
 03b6 1f    	rar			; move low bit into carry
 03b7 d42c07	cnc	0x072c		; call "dog_click"
 03ba d2b403	jnc	0x03b4
 03bd cd1800	call	0x0018		; call "dog_reset"
 
-03c0 db68  	in	0x68
+03c0 db68  	in	0x68		; host_info
 03c2 e63f  	ani	0x3f
 03c4 320bff	sta	0xff0b
-03c7 c32606	jmp	0x0626
+03c7 c32606	jmp	0x0626		; eoi2
 
 ; loop waiting on 0x78 (host wait)
-03ca db78  	in	0x78
+03ca db78  	in	0x78		; host data
 03cc 1f    	rar			; move low bit into carry
 03cd d42c07	cnc	0x072c		; call "dog_click"
 03d0 d2ca03	jnc	0x03ca
 03d3 cd1800	call	0x0018		; call "dog_reset"
 
-03d6 db68  	in	0x68
+03d6 db68  	in	0x68		; host_info
 03d8 e67f  	ani	0x7f
 03da 320aff	sta	0xff0a
 03dd af    	xra	A		; A <- 0
 03de 3211ff	sta	0xff11
-03e1 c32606	jmp	0x0626
-03e4 2a07ff	lhld	0xff07
-03e7 72    	mov	M, D
-03e8 23    	inx	H
-03e9 3ea8  	mvi	A, 0xa8
+03e1 c32606	jmp	0x0626		; eoi2
+
+; subroutine
+03e4 2a07ff	lhld	0xff07		; HL <- 0xff07
+03e7 72    	mov	M, D		; (HL) <- D
+03e8 23    	inx	H		; HL++
+03e9 3ea8  	mvi	A, 0xa8		; 168
 03eb bd    	cmp	L
 03ec caf303	jz	0x03f3
-03ef 2207ff	shld	0xff07
+03ef 2207ff	shld	0xff07		; HL -> 0xff07
 03f2 c9    	ret
 
-03f3 21a4f0	lxi	H, 0xf0a4
-03f6 360d  	mvi	M, 0x0d
+; 0xf0a4 Seems like an odd location to just pluck out of the air
+; and write a CR/LF to.
+03f3 21a4f0	lxi	H, 0xf0a4	; HL <- 0xf0a4
+03f6 360d  	mvi	M, 0x0d		; CR
 03f8 23    	inx	H
-03f9 360a  	mvi	M, 0x0a
+03f9 360a  	mvi	M, 0x0a		; LF
 03fb f1    	pop	PSW
 03fc c39903	jmp	0x0399
-03ff db68  	in	0x68
+
+03ff db68  	in	0x68		; host_info
 0401 fea5  	cpi	0xa5
 0403 ca1104	jz	0x0411
 0406 3a09ff	lda	0xff09
 0409 b7    	ora	A
 040a c21104	jnz	0x0411
 040d 3e02  	mvi	A, 0x02
-040f d378  	out	0x78
+040f d378  	out	0x78		; host_ctl
 0411 db48  	in	0x48		; read keyboard status (pointless)
 0413 3e40  	mvi	A, 0x40
-0415 d378  	out	0x78
-0417 c32606	jmp	0x0626
+0415 d378  	out	0x78		; host_ctl
+0417 c32606	jmp	0x0626		; eoi2
 041a 56    	mov	D, M
 041b 23    	inx	H
 041c 5e    	mov	E, M
@@ -861,16 +919,16 @@
 ; xx_flag is always 1, so it always falls thru
 0500 3a03ff	lda	0xff03		; get "xx_flag"
 0503 1f    	rar			; move low bit into carry
-0504 d22706	jnc	0x0627		; jump to END of interrupt
+0504 d22706	jnc	0x0627		; eoi1
 
 0507 cd8f07	call	0x078f		; call "host_check"
 050a 3e90  	mvi	A, 0x90
-050c d378  	out	0x78
+050c d378  	out	0x78		; host_ctl
 050e 3eaa  	mvi	A, 0xaa
-0510 d370  	out	0x70
+0510 d370  	out	0x70		; host_beta
 0512 3eff  	mvi	A, 0xff
-0514 d368  	out	0x68
-0516 c32706	jmp	0x0627		; jump to END of interrupt
+0514 d368  	out	0x68		; host_alpha
+0516 c32706	jmp	0x0627		; eoi1
 
 0519 cd2407	call	0x0724
 051c 1100c0	lxi	D, 0xc000	; display ram
@@ -984,39 +1042,52 @@
 05c0 cd9d07	call	0x079d
 05c3 c9    	ret
 
+; --------------------------
+
 ; RST-6 handler
+
+; This is the second of two interrupts that come from
+; the interrupt board (the other is RST-5)
+
 05c4 3e64  	mvi	A, 0x64
-05c6 d378  	out	0x78
+05c6 d378  	out	0x78		; host_ctl
+
 05c8 f1    	pop	PSW
 05c9 c5    	push	B
 05ca d5    	push	D
 05cb e5    	push	H
+
+; The following seems silly.  It will always fail given
+; that we loaded 0x64 into A above (0110_0000)
+
 05cc 17    	ral			; rotate left thru carry
 05cd da2d06	jc	0x062d
+
 05d0 3e04  	mvi	A, 0x04
-05d2 d378  	out	0x78
+05d2 d378  	out	0x78		; host_ctl
 05d4 110000	lxi	D, 0x0000
-05d7 db68  	in	0x68
+05d7 db68  	in	0x68		; host_info
 05d9 57    	mov	D, A
 05da fea3  	cpi	0xa3
 05dc caec05	jz	0x05ec
 05df fea2  	cpi	0xa2
 05e1 caec05	jz	0x05ec
-05e4 17    	ral			; rotate left thru carry
+
+05e4 17    	ral			; test high bit
 05e5 d2ff05	jnc	0x05ff
-05e8 17    	ral			; rotate left thru carry
+05e8 17    	ral			; test next to high bit
 05e9 d2ff05	jnc	0x05ff
 
 ; loop waiting on 0x78 (host wait)
-05ec db78  	in	0x78
+05ec db78  	in	0x78		; host data
 05ee 1f    	rar			; rotate right thru carry
 05ef d42c07	cnc	0x072c		; call "dog_click"
 05f2 d2ec05	jnc	0x05ec
 05f5 cd1800	call	0x0018		; call "dog_reset"
 
 05f8 3e40  	mvi	A, 0x40
-05fa d378  	out	0x78
-05fc db68  	in	0x68
+05fa d378  	out	0x78		; host_ctl
+05fc db68  	in	0x68		; host_info
 05fe 5f    	mov	E, A
 05ff 00    	nop
 0600 2af8ff	lhld	0xfff8
@@ -1037,13 +1108,22 @@
 061a 22f8ff	shld	0xfff8
 061d 7e    	mov	A, M
 061e b7    	ora	A
-061f c22606	jnz	0x0626
+061f c22606	jnz	0x0626		; eoi2
 0622 3e08  	mvi	A, 0x08
-0624 d378  	out	0x78
+0624 d378  	out	0x78		; host_ctl
+
+; Some code comes here when finished.
+; It is hard to see the benefit of coming
+; here rather that 0627 below unless
+; there is some advantage in enabling
+; interrupts a tad earlier.
+; call this "eoi2"
+
 0626 fb    	ei
 
-; Lots of code comes here when finished
+; Lots of code comes here when finished.
 ; this is an "end of interrupt" routine
+; call this "eoi1"
 
 0627 e1    	pop	H
 0628 d1    	pop	D
@@ -1052,7 +1132,8 @@
 062b fb    	ei
 062c c9    	ret
 
-062d db68  	in	0x68
+; jumped to from above
+062d db68  	in	0x68		; host_info
 062f e6c0  	ani	0xc0
 0631 fec0  	cpi	0xc0
 0633 ca3c06	jz	0x063c
@@ -1061,17 +1142,18 @@
 0639 c34806	jmp	0x0648
 
 ; loop waiting on 0x78 (host wait)
-063c db78  	in	0x78
+063c db78  	in	0x78		; host data
 063e 1f    	rar			; rotate right thru carry
 063f d42c07	cnc	0x072c		; call "dog_click"
 0642 d23c06	jnc	0x063c
 0645 cd1800	call	0x0018		; call "dog_reset"
 
 0648 3e40  	mvi	A, 0x40
-064a d378  	out	0x78
+064a d378  	out	0x78		; host_ctl
 064c 2af8ff	lhld	0xfff8
 064f c31d06	jmp	0x061d
 
+; -------------------------------------------
 ; KEYBOARD input -----
 
 ; We come here when we get a keyboard interrupt or if
@@ -1092,7 +1174,7 @@
 ; check kb_flag, bail out if it is set
 065b 3a06ff	lda	0xff06		; get kb_flag
 065e 1f    	rar			; check low bit
-065f da2706	jc	0x0627		; END of interrupt
+065f da2706	jc	0x0627		; eoi1
 
 0662 db48  	in	0x48		; read keyboard status
 0664 e607  	ani	0x07		; get lower 3 bits
@@ -1104,11 +1186,11 @@
 066d cd8f07	call	0x078f		; call "host_check"
 
 0670 79    	mov	A, C		; A <- C i.e. 0x90
-0671 d378  	out	0x78
+0671 d378  	out	0x78		; host_ctl
 0673 cd8f07	call	0x078f		; call "host_check"
 
 0676 7a    	mov	A, D		; A <- D (original kb data)
-0677 d370  	out	0x70		; send to host
+0677 d370  	out	0x70		; host_beta
 
 ; xx_flag is always 1, so this always jumps to 06f3
 0679 3a03ff	lda	0xff03		; get "xx_flag"
@@ -1116,9 +1198,9 @@
 067d daf306	jc	0x06f3
 
 0680 7b    	mov	A, E		; A <- E i.e. 0xff
-0681 d368  	out	0x68
+0681 d368  	out	0x68		; host_alpha
 0683 fb    	ei
-0684 c32706	jmp	0x0627		; END of interrupt
+0684 c32706	jmp	0x0627		; eoi1
 
 ; -------------------------
 ; Here if the lower 3 bits of keyboard status are non-zero
@@ -1204,7 +1286,7 @@
 
 06f3 fb    	ei
 06f4 db48  	in	0x48		; read keyboard status (pointless)
-06f6 db78  	in	0x78
+06f6 db78  	in	0x78		; host data
 06f8 e606  	ani	0x06
 06fa ca0a07	jz	0x070a
 06fd 2afaff	lhld	0xfffa
@@ -1216,7 +1298,7 @@
 0707 c3f306	jmp	0x06f3
 
 070a 7b    	mov	A, E
-070b d368  	out	0x68
+070b d368  	out	0x68		; host_alpha
 070d 2a0cff	lhld	0xff0c
 0710 72    	mov	M, D
 0711 23    	inx	H
@@ -1227,7 +1309,7 @@
 0719 feff  	cpi	0xff
 071b c28107	jnz	0x0781
 071e 220cff	shld	0xff0c
-0721 c32706	jmp	0x0627		; jump to END of interrupt
+0721 c32706	jmp	0x0627		; eoi1
 
 ; subroutine
 0724 2a00ff	lhld	0xff00
@@ -1296,18 +1378,17 @@
 0784 fe20  	cpi	0x20
 0786 cc7d07	cz	0x077d
 0789 220cff	shld	0xff0c
-078c c32706	jmp	0x0627		; jump to END of interrupt
+078c c32706	jmp	0x0627		; eoi1
 
 ; subroutine during keyboard processing
 ; the usual loop on 0x78, encapsulated in a subroutine
 ; call this "host_check"
 
-078f db78  	in	0x78
+078f db78  	in	0x78		; host data
 0791 e606  	ani	0x06
 0793 c42c07	cnz	0x072c		; call "dog_click"
 0796 c28f07	jnz	0x078f
 0799 cd1800	call	0x0018		; call "dog_reset"
-
 079c c9    	ret
 
 ; Display message
