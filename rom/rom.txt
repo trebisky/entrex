@@ -121,13 +121,16 @@
 ; ----------------------------------
 ; Some notes on the interface board ports.
 ;
-;  in 0x68 reads from UC3 and gets 4 bits on D7, D6, D5, D4
-;	I call this host_info
+;  in 0x68 reads from UB3 and UC3 (74173) and gets 8 bits
+;	I call this host_data
+;	this is read 8 times
 ;  in 0x70 is the printer
 ;  in 0x78 reads from UE4 (8T97) and gets 5 bits
 ;	3 bits up high (D7, D6, D5)
 ;	2 bits low  (D1, D0)
-;	I call this (for now anyway) host_data
+;	I call this (for now anyway) host status
+;	(It doesn't look like data, various tests
+;	  are done on the low bits)  read 9 times
 ;
 ;  out 0x78 writes to all kinds of logic and flip flops
 ;	I call this host_ctl (many writes)
@@ -199,7 +202,7 @@
 ; rst-6 -- from interface board to host
 ; why the heck does is push PSW twice ??
 0030 f5    	push	PSW
-0031 db78  	in	0x78		; host data
+0031 db78  	in	0x78		; host status
 0033 f5    	push	PSW
 0034 c3c405	jmp	0x05c4
 0037 00    	nop
@@ -246,7 +249,7 @@
 0068 22faff	shld	0xfffa
 006b 22f8ff	shld	0xfff8
 
-006e db78  	in	0x78		; host data
+006e db78  	in	0x78		; host status
 0070 e620  	ani	0x20
 0072 c27a00	jnz	0x007a
 
@@ -314,7 +317,7 @@
 
 00d8 3e40  	mvi	A, 0x40
 00da d378  	out	0x78		; host_ctl
-00dc db68  	in	0x68		; host_info
+00dc db68  	in	0x68		; host_data
 00de c39400	jmp	0x0094		; loop to top ^^^
 
 ; subroutine (2 calls)
@@ -678,10 +681,10 @@
 
 0367 3e61  	mvi	A, 0x61
 0369 d378  	out	0x78		; host_ctl
-036b db78  	in	0x78		; host data
+036b db78  	in	0x78		; host status
 036d e640  	ani	0x40
 036f c2ff03	jnz	0x03ff
-0372 db68  	in	0x68		; host_info		; host_info
+0372 db68  	in	0x68		; host_data
 0374 57    	mov	D, A
 0375 fe0a  	cpi	0x0a		; newline ?
 0377 ca8c03	jz	0x038c
@@ -717,25 +720,25 @@
 03b1 c39903	jmp	0x0399
 
 ; loop waiting on 0x78 (host wait)
-03b4 db78  	in	0x78		; host data
+03b4 db78  	in	0x78		; host status
 03b6 1f    	rar			; move low bit into carry
 03b7 d42c07	cnc	0x072c		; call "dog_click"
 03ba d2b403	jnc	0x03b4
 03bd cd1800	call	0x0018		; call "dog_reset"
 
-03c0 db68  	in	0x68		; host_info
+03c0 db68  	in	0x68		; host_data
 03c2 e63f  	ani	0x3f
 03c4 320bff	sta	0xff0b
 03c7 c32606	jmp	0x0626		; eoi2
 
 ; loop waiting on 0x78 (host wait)
-03ca db78  	in	0x78		; host data
+03ca db78  	in	0x78		; host status
 03cc 1f    	rar			; move low bit into carry
 03cd d42c07	cnc	0x072c		; call "dog_click"
 03d0 d2ca03	jnc	0x03ca
 03d3 cd1800	call	0x0018		; call "dog_reset"
 
-03d6 db68  	in	0x68		; host_info
+03d6 db68  	in	0x68		; host_data
 03d8 e67f  	ani	0x7f
 03da 320aff	sta	0xff0a
 03dd af    	xra	A		; A <- 0
@@ -761,7 +764,8 @@
 03fb f1    	pop	PSW
 03fc c39903	jmp	0x0399
 
-03ff db68  	in	0x68		; host_info
+; read from host
+03ff db68  	in	0x68		; host_data
 0401 fea5  	cpi	0xa5
 0403 ca1104	jz	0x0411
 0406 3a09ff	lda	0xff09
@@ -1066,7 +1070,7 @@
 05d0 3e04  	mvi	A, 0x04
 05d2 d378  	out	0x78		; host_ctl
 05d4 110000	lxi	D, 0x0000
-05d7 db68  	in	0x68		; host_info
+05d7 db68  	in	0x68		; host_data
 05d9 57    	mov	D, A
 05da fea3  	cpi	0xa3
 05dc caec05	jz	0x05ec
@@ -1079,7 +1083,7 @@
 05e9 d2ff05	jnc	0x05ff
 
 ; loop waiting on 0x78 (host wait)
-05ec db78  	in	0x78		; host data
+05ec db78  	in	0x78		; host status
 05ee 1f    	rar			; rotate right thru carry
 05ef d42c07	cnc	0x072c		; call "dog_click"
 05f2 d2ec05	jnc	0x05ec
@@ -1087,7 +1091,7 @@
 
 05f8 3e40  	mvi	A, 0x40
 05fa d378  	out	0x78		; host_ctl
-05fc db68  	in	0x68		; host_info
+05fc db68  	in	0x68		; host_data
 05fe 5f    	mov	E, A
 05ff 00    	nop
 0600 2af8ff	lhld	0xfff8
@@ -1133,7 +1137,7 @@
 062c c9    	ret
 
 ; jumped to from above
-062d db68  	in	0x68		; host_info
+062d db68  	in	0x68		; host_data
 062f e6c0  	ani	0xc0
 0631 fec0  	cpi	0xc0
 0633 ca3c06	jz	0x063c
@@ -1142,7 +1146,7 @@
 0639 c34806	jmp	0x0648
 
 ; loop waiting on 0x78 (host wait)
-063c db78  	in	0x78		; host data
+063c db78  	in	0x78		; host status
 063e 1f    	rar			; rotate right thru carry
 063f d42c07	cnc	0x072c		; call "dog_click"
 0642 d23c06	jnc	0x063c
@@ -1286,7 +1290,7 @@
 
 06f3 fb    	ei
 06f4 db48  	in	0x48		; read keyboard status (pointless)
-06f6 db78  	in	0x78		; host data
+06f6 db78  	in	0x78		; host status
 06f8 e606  	ani	0x06
 06fa ca0a07	jz	0x070a
 06fd 2afaff	lhld	0xfffa
@@ -1384,7 +1388,7 @@
 ; the usual loop on 0x78, encapsulated in a subroutine
 ; call this "host_check"
 
-078f db78  	in	0x78		; host data
+078f db78  	in	0x78		; host status
 0791 e606  	ani	0x06
 0793 c42c07	cnz	0x072c		; call "dog_click"
 0796 c28f07	jnz	0x078f
