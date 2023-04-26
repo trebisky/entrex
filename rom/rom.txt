@@ -122,9 +122,8 @@
 ; Some notes on the interface board ports.
 ;
 ;  in 0x68 reads from UB3 and UC3 (74173) and gets 8 bits
-;	I call this host_data
+;	I call this "host_data_in"
 ;	this is read 8 times
-;  in 0x70 is the printer
 ;  in 0x78 reads from UE4 (8T97) and gets 5 bits
 ;	3 bits up high (D7, D6, D5)
 ;	2 bits low  (D1, D0)
@@ -137,9 +136,12 @@
 ;  out 0x70 - I call this host_beta (2 writes)
 ;	- one case writes 0xaa
 ;	- the other writes 8 bits of keyboard data
+;	Beta is probably data (and rhymes nicely)
+;	I change the name to "host_data_out" <<<<<
 ;  out 0x68 - I call this host_alpha (3 writes)
 ;	- usually 0xff, but I don't think data matters
-
+;
+;  in 0x70 is the printer
 ;  out 0x60 printer
 ;  out 0x58 printer
 
@@ -276,13 +278,15 @@
 0090 d350  	out	0x50		; clear kb_555
 0092 db50  	in	0x50		; read keyboard data
 
+; -----------------------
 ; main loop
+
 0094 212800	lxi	H, 0x0028	; HL = 0x0028
 0097 db40  	in	0x40		; on RAM expansion board
 0099 2f    	cma
 009a e601  	ani	0x01
 009c 3202ff	sta	0xff02
-009f 1f    	rar			; rotate right thru carry
+009f 1f    	rar			; get low bit
 00a0 d2a600	jnc	0x00a6
 00a3 215000	lxi	H, 0x0050
 00a6 22fcff	shld	0xfffc
@@ -297,6 +301,7 @@
 00b9 3a0eff	lda	0xff0e
 00bc 1f    	rar			; rotate right thru carry
 00bd daca00	jc	0x00ca
+
 00c0 db70  	in	0x70		; read printer status
 00c2 e610  	ani	0x10
 00c4 c44d02	cnz	0x024d		; call if NZ
@@ -307,20 +312,25 @@
 ; call the keyboard interrupt routine above.
 
 00ca db48  	in	0x48		; read keyboard status
-00cc e640  	ani	0x40
-00ce c42000	cnz	0x0020		; call if NZ
+00cc e640  	ani	0x40		; is data waiting ?
+00ce c42000	cnz	0x0020		; call if data waiting
 
 ; xx_flag is always 1, so the jump to 0094 always takes place
+; (maybe this flag indicates that the HOST interface is
+; done by interrupts and we don't poke at it here ??
 00d1 3a03ff	lda	0xff03		; get "xx_flag"
 00d4 1f    	rar			; get low bit
 00d5 da9400	jc	0x0094
 
 00d8 3e40  	mvi	A, 0x40
 00da d378  	out	0x78		; host_ctl
-00dc db68  	in	0x68		; host_data
+00dc db68  	in	0x68		; host_data_in
 00de c39400	jmp	0x0094		; loop to top ^^^
 
-; subroutine (2 calls)
+; end of main loop
+; ---------------------------------
+
+; subroutine (big one -- 2 calls)
 00e1 f5    	push	PSW
 00e2 c5    	push	B
 00e3 d5    	push	D
@@ -335,10 +345,11 @@
 00f5 caa501	jz	0x01a5
 00f8 fe20  	cpi	0x20
 00fa cadd01	jz	0x01dd
-00fd cd1e02	call	0x021e
+00fd cd1e02	call	0x021e		; is_printer_ready ?
 0100 db70  	in	0x70		; read printer status
 0102 e608  	ani	0x08
 0104 ca2706	jz	0x0627		; eoi1
+
 0107 7e    	mov	A, M
 0108 feb8  	cpi	0xb8
 010a cc4a02	cz	0x024a
@@ -351,11 +362,13 @@
 0119 d360  	out	0x60		; printer
 011b 23    	inx	H
 011c 2207ff	shld	0xff07
-011f cd1e02	call	0x021e
+
+011f cd1e02	call	0x021e		; is_printer_ready ?
 0122 db48  	in	0x48		; read keyboard status (pointless)
 0124 db70  	in	0x70		; read printer status
 0126 e604  	ani	0x04
 0128 ca1f01	jz	0x011f
+
 012b 3a0bff	lda	0xff0b
 012e 5f    	mov	E, A
 012f 16    	dcr	D
@@ -370,7 +383,8 @@
 013f af    	xra	A		; A <- 0
 0140 d360  	out	0x60		; printer
 0142 c32706	jmp	0x0627		; eoi1
-0145 cd1e02	call	0x021e
+
+0145 cd1e02	call	0x021e		; is_printer_ready ?
 0148 db70  	in	0x70		; read printer status
 014a e604  	ani	0x04
 014c ca2706	jz	0x0627		; eoi1
@@ -393,8 +407,8 @@
 
 ; The following looks like a loop waiting for keyboard status
 ; to go non-zero
-0172 cd1e02	call	0x021e
-0175 db70  	in	0x70		; read printer status
+0172 cd1e02	call	0x021e		; is_printer_ready ?
+0175 db70  	in	0x70		; read printer status (pointless)
 0177 e602  	ani	0x02
 0179 db48  	in	0x48		; read keyboard status
 017b ca7201	jz	0x0172
@@ -419,7 +433,7 @@
 01a2 c30005	jmp	0x0500
 
 ; Another keyboard status wait loop
-01a5 cd1e02	call	0x021e
+01a5 cd1e02	call	0x021e		; is_printer_ready ?
 01a8 db70  	in	0x70		; read printer status
 01aa e602  	ani	0x02
 01ac db48  	in	0x48		; read keyboard status
@@ -429,12 +443,15 @@
 01b4 57    	mov	D, A
 01b5 3a0aff	lda	0xff0a
 01b8 92    	sub	D
-01b9 6f    	mov	L, A
-01ba 2600  	mvi	H, 0x00
+
+; multiply by 8
+01b9 6f    	mov	L, A		; L <- A
+01ba 2600  	mvi	H, 0x00		; H <- 0x0
 01bc 29    	dad	H		; hl += hl
 01bd 29    	dad	H		; hl += hl
 01be 29    	dad	H		; hl += hl
 01bf 7d    	mov	A, L
+
 01c0 d358  	out	0x58		; printer
 01c2 7c    	mov	A, H
 01c3 e603  	ani	0x03
@@ -450,7 +467,7 @@
 01d7 3211ff	sta	0xff11
 01da c32706	jmp	0x0627		; eoi1
 
-01dd cd1e02	call	0x021e
+01dd cd1e02	call	0x021e		; is_printer_ready ?
 01e0 db48  	in	0x48		; read keyboard status (pointless)
 01e2 db70  	in	0x70		; read printer status
 01e4 e604  	ani	0x04
@@ -484,10 +501,10 @@
 0218 220fff	shld	0xff0f
 021b c32706	jmp	0x0627		; eoi1
 
-; subroutine
+; subroutine "check if printer ready"
 
 021e db70  	in	0x70		; read printer status
-0220 1f    	rar			; rotate right thru carry
+0220 1f    	rar			; test low bit
 0221 da2a02	jc	0x022a
 0224 e610  	ani	0x10
 0226 ca2a02	jz	0x022a
@@ -502,7 +519,7 @@
 0234 d360  	out	0x60		; printer
 0236 af    	xra	A		; A <- 0
 0237 d360  	out	0x60		; printer
-0239 cd1e02	call	0x021e
+0239 cd1e02	call	0x021e		; is_printer_ready ?
 023c db48  	in	0x48		; read keyboard status (pointless)
 023e db70  	in	0x70		; read printer status
 0240 e608  	ani	0x08
@@ -666,6 +683,7 @@
 ; several jumps (2) to here.
 
 ; display message "PRINTER NOT READY"
+
 0357 01bc07	lxi	B, 0x07bc	; message (text)
 035a cd9d07	call	0x079d		; display the message
 035d 3e01  	mvi	A, 0x01
@@ -684,7 +702,7 @@
 036b db78  	in	0x78		; host status
 036d e640  	ani	0x40
 036f c2ff03	jnz	0x03ff
-0372 db68  	in	0x68		; host_data
+0372 db68  	in	0x68		; host_data_in
 0374 57    	mov	D, A
 0375 fe0a  	cpi	0x0a		; newline ?
 0377 ca8c03	jz	0x038c
@@ -726,7 +744,7 @@
 03ba d2b403	jnc	0x03b4
 03bd cd1800	call	0x0018		; call "dog_reset"
 
-03c0 db68  	in	0x68		; host_data
+03c0 db68  	in	0x68		; host_data_in
 03c2 e63f  	ani	0x3f
 03c4 320bff	sta	0xff0b
 03c7 c32606	jmp	0x0626		; eoi2
@@ -738,7 +756,7 @@
 03d0 d2ca03	jnc	0x03ca
 03d3 cd1800	call	0x0018		; call "dog_reset"
 
-03d6 db68  	in	0x68		; host_data
+03d6 db68  	in	0x68		; host_data_in
 03d8 e67f  	ani	0x7f
 03da 320aff	sta	0xff0a
 03dd af    	xra	A		; A <- 0
@@ -765,7 +783,7 @@
 03fc c39903	jmp	0x0399
 
 ; read from host
-03ff db68  	in	0x68		; host_data
+03ff db68  	in	0x68		; host_data_in
 0401 fea5  	cpi	0xa5
 0403 ca1104	jz	0x0411
 0406 3a09ff	lda	0xff09
@@ -868,7 +886,7 @@
 04a8 3a02ff	lda	0xff02
 04ab cdaf07	call	0x07af		; HL *= 40
 04ae 1f    	rar			; rotate right thru carry
-04af dcba07	cc	0x07ba
+04af dcba07	cc	0x07ba		; HL *= 2
 04b2 eb    	xchg			; hl <--> de
 04b3 2100c0	lxi	H, 0xc000	; display ram
 04b6 19    	dad	D		; hl += de
@@ -900,7 +918,7 @@
 04df 3a02ff	lda	0xff02
 04e2 cdaf07	call	0x07af		; HL *= 40
 04e5 1f    	rar			; rotate right thru carry
-04e6 dcba07	cc	0x07ba
+04e6 dcba07	cc	0x07ba		; HL *= 2
 04e9 0100c0	lxi	B, 0xc000	; display ram
 04ec 09    	dad	B		; hl += bc
 04ed 44    	mov	B, H
@@ -929,7 +947,7 @@
 050a 3e90  	mvi	A, 0x90
 050c d378  	out	0x78		; host_ctl
 050e 3eaa  	mvi	A, 0xaa
-0510 d370  	out	0x70		; host_beta
+0510 d370  	out	0x70		; host_data_out
 0512 3eff  	mvi	A, 0xff
 0514 d368  	out	0x68		; host_alpha
 0516 c32706	jmp	0x0627		; eoi1
@@ -1005,7 +1023,7 @@
 0578 3a02ff	lda	0xff02
 057b cdaf07	call	0x07af		; HL *= 40
 057e 1f    	rar			; rotate right thru carry
-057f dcba07	cc	0x07ba
+057f dcba07	cc	0x07ba		; HL *= 2
 0582 eb    	xchg			; hl <--> de
 0583 21ffbf	lxi	H, 0xbfff
 0586 19    	dad	D		; hl += de
@@ -1043,7 +1061,7 @@
 
 ; print message "XMISSION ERROR"
 05bd 01ce07	lxi	B, 0x07ce
-05c0 cd9d07	call	0x079d
+05c0 cd9d07	call	0x079d		; display the message
 05c3 c9    	ret
 
 ; --------------------------
@@ -1070,7 +1088,7 @@
 05d0 3e04  	mvi	A, 0x04
 05d2 d378  	out	0x78		; host_ctl
 05d4 110000	lxi	D, 0x0000
-05d7 db68  	in	0x68		; host_data
+05d7 db68  	in	0x68		; host_data_in
 05d9 57    	mov	D, A
 05da fea3  	cpi	0xa3
 05dc caec05	jz	0x05ec
@@ -1091,7 +1109,7 @@
 
 05f8 3e40  	mvi	A, 0x40
 05fa d378  	out	0x78		; host_ctl
-05fc db68  	in	0x68		; host_data
+05fc db68  	in	0x68		; host_data_in
 05fe 5f    	mov	E, A
 05ff 00    	nop
 0600 2af8ff	lhld	0xfff8
@@ -1137,7 +1155,7 @@
 062c c9    	ret
 
 ; jumped to from above
-062d db68  	in	0x68		; host_data
+062d db68  	in	0x68		; host_data_in
 062f e6c0  	ani	0xc0
 0631 fec0  	cpi	0xc0
 0633 ca3c06	jz	0x063c
@@ -1194,7 +1212,7 @@
 0673 cd8f07	call	0x078f		; call "host_check"
 
 0676 7a    	mov	A, D		; A <- D (original kb data)
-0677 d370  	out	0x70		; host_beta
+0677 d370  	out	0x70		; host_data_out
 
 ; xx_flag is always 1, so this always jumps to 06f3
 0679 3a03ff	lda	0xff03		; get "xx_flag"
@@ -1384,6 +1402,7 @@
 0789 220cff	shld	0xff0c
 078c c32706	jmp	0x0627		; eoi1
 
+; ----
 ; subroutine during keyboard processing
 ; the usual loop on 0x78, encapsulated in a subroutine
 ; call this "host_check"
@@ -1395,11 +1414,13 @@
 0799 cd1800	call	0x0018		; call "dog_reset"
 079c c9    	ret
 
+; ----
 ; Display message
 ;  BC points to message
+
 079d c5    	push	B
 079e 0100c0	lxi	B, 0xc000	; display ram
-07a1 2afcff	lhld	0xfffc
+07a1 2afcff	lhld	0xfffc		; -4 ??
 07a4 09    	dad	B		; hl += bc
 07a5 c1    	pop	B
 
@@ -1413,6 +1434,7 @@
 
 07ae c9    	ret
 
+; ----
 ; multiply HL by 40
 ; "dad" is the double add instruction.
 ; it adds some 16 bit quantity to HL.
@@ -1428,7 +1450,11 @@
 07b8 d1    	pop	D
 07b9 c9    	ret
 
+; ----
+; multiply HL by 2
 ; subroutine called by "cc" instruction
+; having this as a subroutine makes it a one liner
+; to have the "cc" instruction call it.
 07ba 29    	dad	H		; hl += hl
 07bb c9    	ret
 

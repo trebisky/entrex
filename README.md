@@ -11,3 +11,7 @@ and most importantly, the annotated ROM disassembly.
 The "remap" directory has a python script
 (and some instructions for using it) that I use to
 relabel signals on his KiCAD schematic.
+
+See my notes on this project at:
+
+http://cholla.mmto.org/computers/reverse/entrex/
