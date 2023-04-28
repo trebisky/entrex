@@ -26,12 +26,29 @@ INT = '$(PRISTINE)/Interface Board'
 CUR_INT = './Interface Board'
 
 all:
+	echo "Sorry"
 
+plist:
 	cd $(CUR_PRO) ; ls -l
 	cd $(PRO) ; ls -l
 	cd $(CUR_INT) ; ls -l
 	cd $(INT) ; ls -l
 
+setup:
+	ln -s /u1/Projects/Anthrax/Github/remap/remap
+	ln -s /u1/Projects/Anthrax/Github/remap/interface_remap
+	ln -s /u1/Projects/Anthrax/Github/remap/processor_remap
+	cd $(CUR_INT); mv 'Entrex Trapezoid Interface Board v23.kicad_pcb' proto_pcb
+	cd $(CUR_INT); mv 'Entrex Trapezoid Interface Board v23.kicad_sch' proto_sch
+	cd $(CUR_INT); ln -s 'Entrex Trapezoid Interface Board v23.kicad_sch' new_sch
+	cd $(CUR_PRO); mv 'Entrex Trapezoid Processor Board v37.kicad_pcb' proto_pcb
+	cd $(CUR_PRO); mv 'Entrex Trapezoid Processor Board v37.kicad_sch' proto_sch
+	cd $(CUR_PRO); ln -s 'Entrex Trapezoid Processor Board v37.kicad_sch' new_sch
+
+map:
+	./remap
+
+# Old scheme to copy files from pristine github clone
 update:
 	cp $(PRO)/'Entrex Trapezoid Processor Board v37.kicad_pcb' $(CUR_PRO)/proto_pcb
 	cp $(PRO)/'Entrex Trapezoid Processor Board v37.kicad_sch' $(CUR_PRO)/proto_sch

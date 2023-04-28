@@ -33,7 +33,10 @@ class Mapper () :
         self.in_sch = self.path + "proto_sch"
         self.out_sch = self.path + "new_sch"
 
-        self.load_remap ()
+        try:
+            self.load_remap ()
+        except Exception:
+            self.map = None
 
     # We need to take some special pains to avoid partial matches
     # For example J18_1 will match J18_13 and so forth.
@@ -66,6 +69,10 @@ class Mapper () :
         return line
 
     def do_the_remap ( self ) :
+        if self.map is None :
+            print ( self.who, " nothing to do" )
+            return
+
         search_list = list(self.map.keys())
 
         outfile = open ( self.out_sch, 'w')

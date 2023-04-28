@@ -33,3 +33,8 @@ run it from there typing "./remap" on my linux system.
 
 5) On my machine the KiCAD files are on a shared drive visible from Windows where I run KiCAD.
 I also play various games with symbolic links.  Windows users can ignore all of this.
+
+------------------------
+
+On 4-26-2023 I wanted to import changes made by AJ, and set up the scheme described
+in the Makefile to do this.

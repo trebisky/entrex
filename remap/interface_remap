@@ -41,24 +41,38 @@ u8_11	LOAD*
 #  outB looks like TxData
 #  inC looks like RxData
 #  inD seems to yield a clock
-#  inE just connects CG1 and CG2
-u15_8	CG1_outA
-u30_6	CG1_outB
-u3_12	CG1_inC
-u1_3	CG1_inD
-u16_15	CG1_inE
+#  inE also looks like a clock
+
+# A/C pair - CG_outA
+u15_8	CG_outA
+
+# B/F pair - CG_outB
+u30_6	CG_data_out
+
+# D/H pair - CG_inC
+u3_12	CG_data_in
+
+# N/R pair - CG_inD
+# (is this really a clock ???)
+u1_3	CG_inD
+
+# Derived from CG_inD
+u20_3	Clock1
+u2_13	Clock2
+
+# J/P pair - CG_inE
+u16_15	CG_clock
+u4_3	CG_clock
 
 u27_14	rMATCH
 u6_13	MATCH
 
-# Derived from CG1_inD
-u20_3	Clock1
-u2_13	Clock2
-
+# From the processor board
+P15_79	P_reset*
 # Who drives this signal ?
-u34_13	Reset1
-u9_1	Reset2
-u24_8	Reset3
+u34_13	Reset*
+u9_1	Reset2*
+u24_8	Reset3*
 
 # Clocks clocking data out of the two 8274 (UP and DN)
 u25_9	UP_CLOCK
@@ -66,7 +80,7 @@ u30_9	DN_CLOCK
 
 # Data being clocked out of the 8274
 u25_6	UP_sDATA
-# DN_sData is CG1_outB
+# DN_sData is CG_outB
 
 # This clocks data into a register to be read by
 # the processor via IN 0x70
@@ -76,5 +90,16 @@ u14_3	DATA_CLK
 P15_64	IRQ6
 P15_66	IRQ5
 P15_67	IRQ7
+
+# parallel outputs of the 8273 shift register
+u27_13	xD3
+u31_12	xD2
+u33_12	xD1
+u20_2	xD0
+
+u27_9	xD7
+u27_10	xD6
+u27_11	xD5
+u27_12	xD4
 
 # THE END

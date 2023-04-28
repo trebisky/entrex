@@ -1,6 +1,9 @@
 # remap file to change symbol names on the Entrex Processor Board schematic
 # Tom Trebisky  4-12-2023
 
+# Goes to interface board primarily
+J17_80	Reset*
+
 # Address bus (buffered signals)
 UJ1_9	A0
 UJ6_3	A1
