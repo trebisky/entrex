@@ -123,7 +123,9 @@
 ;
 ;  in 0x68 reads from UB3 and UC3 (74173) and gets 8 bits
 ;	I call this "host_data_in"
-;	this is read 8 times
+;	this is read 8 places in this code.
+;	A read from in68 also changes the state
+;	of 3 flipflops on the interface board
 ;  in 0x78 reads from UE4 (8T97) and gets 5 bits
 ;	3 bits up high (D7, D6, D5)
 ;	2 bits low  (D1, D0)
@@ -202,9 +204,9 @@
 002f 00    	nop
 
 ; rst-6 -- from interface board to host
-; why the heck does is push PSW twice ??
+; why the heck does it push PSW twice ??
 0030 f5    	push	PSW
-0031 db78  	in	0x78		; host status
+0031 db78  	in	0x78		; interface status
 0033 f5    	push	PSW
 0034 c3c405	jmp	0x05c4
 0037 00    	nop
@@ -251,7 +253,7 @@
 0068 22faff	shld	0xfffa
 006b 22f8ff	shld	0xfff8
 
-006e db78  	in	0x78		; host status
+006e db78  	in	0x78		; interface status
 0070 e620  	ani	0x20
 0072 c27a00	jnz	0x007a
 
@@ -266,12 +268,21 @@
 007c d360  	out	0x60		; printer
 007e af    	xra	A		; A <- 0
 007f d360  	out	0x60		; printer
-0081 db40  	in	0x40		; on RAM expansion board
+
+; A read from this port checks the state of the reset RS
+; flip flop on the processor board.
+; Only the high bit is set.
+; B is 0x00 falling through from above.
+
+0081 db40  	in	0x40		; check interface ready
 0083 17    	ral			; get high bit
 0084 d28900	jnc	0x0089
 0087 067f  	mvi	B, 0x7f
-0089 cd4305	call	0x0543
-008c d340  	out	0x40
+0089 cd4305	call	0x0543		; fill display ram
+
+; writing this asserts reset to the interface
+; no data for this write
+008c d340  	out	0x40		; reset interface
 008e 3e02  	mvi	A, 0x02
 
 ; Initialize keyboard logic
@@ -282,14 +293,35 @@
 ; main loop
 
 0094 212800	lxi	H, 0x0028	; HL = 0x0028
-0097 db40  	in	0x40		; on RAM expansion board
-0099 2f    	cma
-009a e601  	ani	0x01
-009c 3202ff	sta	0xff02
-009f 1f    	rar			; get low bit
-00a0 d2a600	jnc	0x00a6
+
+; I have studies port 0x40 on the processor board and unless
+; I missed something on that schematic, it only returns the
+; RS reset state in the uppermost bit.
+; HOWEVER - this port select is also routed to the RAM
+;  expansion board and perhaps if that board is present
+;  it sets the low bit that this is testing.
+
+0097 db40  	in	0x40		; read the port
+0099 2f    	cma			; compliment all bits
+009a e601  	ani	0x01		; mask the low bit
+009c 3202ff	sta	0xff02		; save that low bit
+009f 1f    	rar			; low bit to carry
+00a0 d2a600	jnc	0x00a6		; jump if bit zero
+
 00a3 215000	lxi	H, 0x0050
+
 00a6 22fcff	shld	0xfffc
+
+; At this stage the value in 0xfffc is either 0x28 or 0x50
+; 0x28 = 40 and 0x50 = 80.
+; This would be line length without or with ram expansion
+; What I think is going on here is that it is checking if
+; the RAM expansion is present and whether it should act
+; like a terminal with 12 lines of 40 bytes
+;  or 24 lines of 80 bytes
+; The latter is only possible with the ram expansion
+; present and jumpers moved around on the processor board
+
 00a9 fb    	ei			; enable interrupts
 00aa 2afaff	lhld	0xfffa
 00ad 7e    	mov	A, M
@@ -324,7 +356,9 @@
 
 00d8 3e40  	mvi	A, 0x40
 00da d378  	out	0x78		; host_ctl
-00dc db68  	in	0x68		; host_data_in
+
+; read from interface
+00dc db68  	in	0x68		; interface data
 00de c39400	jmp	0x0094		; loop to top ^^^
 
 ; end of main loop
@@ -699,18 +733,23 @@
 
 0367 3e61  	mvi	A, 0x61
 0369 d378  	out	0x78		; host_ctl
-036b db78  	in	0x78		; host status
+036b db78  	in	0x78		; interface status
 036d e640  	ani	0x40
-036f c2ff03	jnz	0x03ff
-0372 db68  	in	0x68		; host_data_in
+036f c2ff03	jnz	0x03ff		; go read
+
+; read from interface
+0372 db68  	in	0x68		; interface data
 0374 57    	mov	D, A
 0375 fe0a  	cpi	0x0a		; newline ?
 0377 ca8c03	jz	0x038c
+
 037a fea5  	cpi	0xa5		; 1010_0101 '%'
 037c cab403	jz	0x03b4
+
 037f e6c0  	ani	0xc0
 0381 fec0  	cpi	0xc0
 0383 caca03	jz	0x03ca
+
 0386 cde403	call	0x03e4
 0389 c30d04	jmp	0x040d
 
@@ -737,26 +776,30 @@
 03ae cde403	call	0x03e4
 03b1 c39903	jmp	0x0399
 
+; Here with 0xa5 -- '%'
 ; loop waiting on 0x78 (host wait)
-03b4 db78  	in	0x78		; host status
+03b4 db78  	in	0x78		; interface status
 03b6 1f    	rar			; move low bit into carry
 03b7 d42c07	cnc	0x072c		; call "dog_click"
 03ba d2b403	jnc	0x03b4
 03bd cd1800	call	0x0018		; call "dog_reset"
 
-03c0 db68  	in	0x68		; host_data_in
+; Here with 0xc0
+; read from interface
+03c0 db68  	in	0x68		; interface data
 03c2 e63f  	ani	0x3f
 03c4 320bff	sta	0xff0b
 03c7 c32606	jmp	0x0626		; eoi2
 
 ; loop waiting on 0x78 (host wait)
-03ca db78  	in	0x78		; host status
+03ca db78  	in	0x78		; interface status
 03cc 1f    	rar			; move low bit into carry
 03cd d42c07	cnc	0x072c		; call "dog_click"
 03d0 d2ca03	jnc	0x03ca
 03d3 cd1800	call	0x0018		; call "dog_reset"
 
-03d6 db68  	in	0x68		; host_data_in
+; read from interface
+03d6 db68  	in	0x68		; interface data
 03d8 e67f  	ani	0x7f
 03da 320aff	sta	0xff0a
 03dd af    	xra	A		; A <- 0
@@ -782,13 +825,14 @@
 03fb f1    	pop	PSW
 03fc c39903	jmp	0x0399
 
-; read from host
-03ff db68  	in	0x68		; host_data_in
+; read from interface
+03ff db68  	in	0x68		; interface data
 0401 fea5  	cpi	0xa5
 0403 ca1104	jz	0x0411
 0406 3a09ff	lda	0xff09
 0409 b7    	ora	A
 040a c21104	jnz	0x0411
+
 040d 3e02  	mvi	A, 0x02
 040f d378  	out	0x78		; host_ctl
 0411 db48  	in	0x48		; read keyboard status (pointless)
@@ -870,7 +914,7 @@
 048b ca2704	jz	0x0427
 048e c33604	jmp	0x0436		; jump to "Xrepeat"
 
-0491 cd4305	call	0x0543
+0491 cd4305	call	0x0543		; fill display ram
 0494 c33604	jmp	0x0436		; jump to "Xrepeat"
 
 0497 7b    	mov	A, E
@@ -975,7 +1019,7 @@
 0540 c33604	jmp	0x0436		; jump to "Xrepeat"
 
 ; subroutine, called from 2 places
-; first with B = 0x7f
+; with B = 0x7f or 0
 0543 2100c0	lxi	H, 0xc000	; display ram
 0546 11fff7	lxi	D, 0xf7ff
 
@@ -1088,7 +1132,9 @@
 05d0 3e04  	mvi	A, 0x04
 05d2 d378  	out	0x78		; host_ctl
 05d4 110000	lxi	D, 0x0000
-05d7 db68  	in	0x68		; host_data_in
+
+; read from interface
+05d7 db68  	in	0x68		; interface data
 05d9 57    	mov	D, A
 05da fea3  	cpi	0xa3
 05dc caec05	jz	0x05ec
@@ -1101,7 +1147,7 @@
 05e9 d2ff05	jnc	0x05ff
 
 ; loop waiting on 0x78 (host wait)
-05ec db78  	in	0x78		; host status
+05ec db78  	in	0x78		; interface status
 05ee 1f    	rar			; rotate right thru carry
 05ef d42c07	cnc	0x072c		; call "dog_click"
 05f2 d2ec05	jnc	0x05ec
@@ -1109,7 +1155,9 @@
 
 05f8 3e40  	mvi	A, 0x40
 05fa d378  	out	0x78		; host_ctl
-05fc db68  	in	0x68		; host_data_in
+
+; read from interface
+05fc db68  	in	0x68		; interface data
 05fe 5f    	mov	E, A
 05ff 00    	nop
 0600 2af8ff	lhld	0xfff8
@@ -1128,6 +1176,7 @@
 0614 c21a06	jnz	0x061a
 0617 21d0ff	lxi	H, 0xffd0
 061a 22f8ff	shld	0xfff8
+
 061d 7e    	mov	A, M
 061e b7    	ora	A
 061f c22606	jnz	0x0626		; eoi2
@@ -1155,7 +1204,8 @@
 062c c9    	ret
 
 ; jumped to from above
-062d db68  	in	0x68		; host_data_in
+; read from interface
+062d db68  	in	0x68		; interface data
 062f e6c0  	ani	0xc0
 0631 fec0  	cpi	0xc0
 0633 ca3c06	jz	0x063c
@@ -1164,7 +1214,7 @@
 0639 c34806	jmp	0x0648
 
 ; loop waiting on 0x78 (host wait)
-063c db78  	in	0x78		; host status
+063c db78  	in	0x78		; interface status
 063e 1f    	rar			; rotate right thru carry
 063f d42c07	cnc	0x072c		; call "dog_click"
 0642 d23c06	jnc	0x063c
@@ -1308,7 +1358,7 @@
 
 06f3 fb    	ei
 06f4 db48  	in	0x48		; read keyboard status (pointless)
-06f6 db78  	in	0x78		; host status
+06f6 db78  	in	0x78		; interface status
 06f8 e606  	ani	0x06
 06fa ca0a07	jz	0x070a
 06fd 2afaff	lhld	0xfffa
@@ -1407,7 +1457,7 @@
 ; the usual loop on 0x78, encapsulated in a subroutine
 ; call this "host_check"
 
-078f db78  	in	0x78		; host status
+078f db78  	in	0x78		; interface status
 0791 e606  	ani	0x06
 0793 c42c07	cnz	0x072c		; call "dog_click"
 0796 c28f07	jnz	0x078f
@@ -1420,7 +1470,7 @@
 
 079d c5    	push	B
 079e 0100c0	lxi	B, 0xc000	; display ram
-07a1 2afcff	lhld	0xfffc		; -4 ??
+07a1 2afcff	lhld	0xfffc		; line size (0x28 or 0x50)
 07a4 09    	dad	B		; hl += bc
 07a5 c1    	pop	B
 

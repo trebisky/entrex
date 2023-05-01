@@ -33,6 +33,19 @@ P15_31	DI5
 P15_33	DI6
 P15_35	DI7
 
+# The duplex switch controls these.  The raw signal is grounded when that
+# connector is selected.
+# Note that these also go to pins 47 and 48 on the edge connector
+# (and that is actually how they reach the CG1 and CG2 connector)
+# They do NOT go to the processor board.
+
+P15_47	Duplex_CG1*
+P15_48	Duplex_CG2*
+
+# These are inverts of the above
+u4_12	duplex_cg1
+u4_2	duplex_cg2
+
 # strobe to load data into both 8274 shift registers
 u8_11	LOAD*
 
@@ -40,7 +53,7 @@ u8_11	LOAD*
 #  outA ???
 #  outB looks like TxData
 #  inC looks like RxData
-#  inD seems to yield a clock
+#  inD seems to be a strobe
 #  inE also looks like a clock
 
 # A/C pair - CG_outA
@@ -53,16 +66,31 @@ u30_6	CG_data_out
 u3_12	CG_data_in
 
 # N/R pair - CG_inD
-# (is this really a clock ???)
-u1_3	CG_inD
+# For a while I called this a clock,
+# but really it is a strobe
+u1_3	CG_strobe
 
 # Derived from CG_inD
-u20_3	Clock1
-u2_13	Clock2
+# (AND with Finish)
+u20_3	Fstrobe*
+
+# Derived from CG_inD
+# This is just a simple inverse
+u2_13	Strobe*
 
 # J/P pair - CG_inE
 u16_15	CG_clock
 u4_3	CG_clock
+
+# inverse of the above
+u4_4	clock*
+
+# signals load to LS160
+u3_8	Start*
+
+# Tc from LS160
+u2_10	Finish
+u3_10	Finish*
 
 u27_14	rMATCH
 u6_13	MATCH

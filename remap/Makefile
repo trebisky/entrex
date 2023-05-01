@@ -45,6 +45,12 @@ setup:
 	cd $(CUR_PRO); mv 'Entrex Trapezoid Processor Board v37.kicad_sch' proto_sch
 	cd $(CUR_PRO); ln -s 'Entrex Trapezoid Processor Board v37.kicad_sch' new_sch
 
+# I don't current remap symbols in the pcb file, so this just copies the files
+# verbatim and unmapped so I can at least look at them.
+hack:
+	cd $(CUR_INT); cp proto_pcb 'Entrex Trapezoid Interface Board v23.kicad_pcb'
+	cd $(CUR_PRO); cp proto_pcb 'Entrex Trapezoid Processor Board v37.kicad_pcb'
+
 map:
 	./remap
 

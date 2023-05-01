@@ -4,3 +4,4 @@ dis_8080
 *.OLD
 rom.out
 zzz
+*.swp
